@@ -266,5 +266,8 @@ def swatches(pal: list[tuple[RGB, float]], paper: str = "#e8d6b2") -> list[dict[
             box = with_lightness(mix(c, hex_to_rgb(paper), 0.3) if L > 50 else c, L, cap)
             seed = hex_to_rgb("#3a2d1a") if L > 50 else hex_to_rgb("#f2ede3")
             text = ensure_contrast(seed, box)
+            lab = rgb_to_lab(box)
+            if any(math.dist(lab, rgb_to_lab(hex_to_rgb(o["box"]))) < 6 for o in out):  # near-duplicates add nothing
+                continue
             out.append({"box": rgb_to_hex(box), "text": rgb_to_hex(text), "border": _accent([(c, 1.0)], "quiet", L > 50), "contrast": round(contrast(box, text), 2)})
     return out
