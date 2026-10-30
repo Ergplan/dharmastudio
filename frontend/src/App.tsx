@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { Rail, Header, Toasts } from './components/Shell'
+import { UpdateBanner } from './components/Updater'
 import ProjectScreen from './screens/Project'
 import CharactersScreen from './screens/Characters'
 import CanvasScreen from './screens/Canvas'
@@ -25,6 +26,7 @@ export default function App() {
     <div className="h-full flex bg-ink-950">
       <Rail />
       <div className="flex-1 min-w-0 flex flex-col">
+        <UpdateBanner />
         <Header />
         <main className="flex-1 min-h-0 overflow-hidden">
           <Routes>

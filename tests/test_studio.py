@@ -226,3 +226,22 @@ def test_approve_artifacts_and_export(client):
         assert pdf_page_count(pdf) == 10
     assert rec["files"][0]["pages"] == list(range(1, 11))
     assert client.get("/api/ledger").json()["total"] == 0.0
+
+
+def test_updater_routes(client, monkeypatch):
+    from backend import updater
+
+    v = client.get("/api/app/version").json()
+    assert "build" in v and v["updatable"] is False  # source checkout never self-updates
+    monkeypatch.setattr(updater, "current", lambda: {"build": 5, "sha": "abc", "updatable": True, "desktop": True, "app_path": "/x"})
+
+    class R:
+        def raise_for_status(self): ...
+        def json(self): return {"build": 7, "sha": "def"}
+
+    monkeypatch.setattr(updater.httpx, "get", lambda *a, **k: R())
+    chk = client.get("/api/app/update/check").json()
+    assert chk["available"] is True and chk["latest"]["build"] == 7
+    monkeypatch.setattr(updater.httpx, "get", lambda *a, **k: (_ for _ in ()).throw(OSError("offline")))
+    assert client.get("/api/app/update/check").json()["available"] is False
+    assert client.post("/api/app/update/apply").json()["ok"] in (True, False)

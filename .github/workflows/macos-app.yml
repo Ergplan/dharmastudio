@@ -45,20 +45,13 @@ jobs:
           done
           iconutil -c icns icon.iconset -o desktop/icon.icns
 
+      - name: Stamp build number
+        run: |
+          echo "{\"build\": ${{ github.run_number }}, \"sha\": \"${{ github.sha }}\", \"built_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > desktop/build_info.json
+          cat desktop/build_info.json
+
       - name: Build Dharma Studio.app
         run: pyinstaller desktop/DharmaStudio.spec --noconfirm
-
-      - name: Smoke-test the bundle (headless)
-        run: |
-          export HOME="$RUNNER_TEMP/home"; mkdir -p "$HOME"
-          "dist/Dharma Studio.app/Contents/MacOS/Dharma Studio" --headless > app.log 2>&1 &
-          for i in $(seq 1 120); do URL=$(grep -m1 '^http' app.log || true); [ -n "$URL" ] && break; sleep 2; done
-          cat app.log | tail -20
-          [ -n "$URL" ] || { echo "app did not start"; exit 1; }
-          curl -sf "${URL}api/project" | head -c 300; echo
-          curl -sf "${URL}api/pages?chapter_id=1" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d),'pages');assert len(d)==10"
-          curl -sf "$URL" | grep -q 'id="root"' && echo "UI ok"
-          pkill -f "Dharma Studio.app" || true
 
       - name: Ad-hoc sign
         run: codesign --force --deep --sign - "dist/Dharma Studio.app"
@@ -68,6 +61,61 @@ jobs:
           mkdir -p dmg && cp -R "dist/Dharma Studio.app" dmg/
           ln -s /Applications dmg/Applications
           hdiutil create -volname "Dharma Studio" -srcfolder dmg -ov -format UDZO DharmaStudio.dmg
+
+      - name: Test the app from the .dmg (as a user would get it)
+        run: |
+          set -e
+          mkdir -p mnt test-apps "$RUNNER_TEMP/home"
+          hdiutil attach -nobrowse -readonly -mountpoint mnt DharmaStudio.dmg
+          ditto "mnt/Dharma Studio.app" "test-apps/Dharma Studio.app"
+          hdiutil detach mnt -quiet
+          codesign --verify --deep "test-apps/Dharma Studio.app" && echo "signature ok"
+          export HOME="$RUNNER_TEMP/home"
+          "test-apps/Dharma Studio.app/Contents/MacOS/Dharma Studio" --headless > app.log 2>&1 &
+          for i in $(seq 1 120); do URL=$(grep -m1 '^http' app.log || true); [ -n "$URL" ] && break; sleep 2; done
+          [ -n "$URL" ] || { tail -40 app.log; echo "app did not start"; exit 1; }
+          echo "served at $URL"
+          curl -sf "$URL" | grep -q 'id="root"' && echo "UI ok"
+          curl -sf "${URL}api/app/version"; echo
+          curl -sf "${URL}api/pages?chapter_id=1" | python3 -c "import sys,json;d=json.load(sys.stdin);n=sum(len(p['panels']) for p in d);c=sum(len(x['candidates']) for p in d for x in p['panels']);print(len(d),'pages',n,'panels',c,'candidates');assert len(d)==10 and n==32 and c==64"
+          curl -sf "${URL}api/pages/1/render?lang=hi" | grep -q "DevSerif" && echo "Hindi render ok"
+          # keys: Keychain write/read through the app (non-fatal: CI keychains can be locked)
+          curl -sf -X PUT "${URL}api/settings/keys" -H 'content-type: application/json' -d '{"topaz":"ci-test-key"}' && curl -sf -X PUT "${URL}api/settings/keys" -H 'content-type: application/json' -d '{"topaz":""}' && echo "keys ok" || echo "::warning::keychain write not available on the CI runner"
+          # approve page 3 (the plate) and export it to PDF with Google Chrome
+          python3 - "$URL" <<'PY'
+          import json, sys, time, urllib.request
+          U = sys.argv[1]
+          def call(m, path, body=None):
+              req = urllib.request.Request(U + path.lstrip("/"), method=m, data=json.dumps(body).encode() if body is not None else None, headers={"content-type": "application/json"})
+              return json.load(urllib.request.urlopen(req, timeout=120))
+          pages = call("GET", "api/pages?chapter_id=1")
+          p3 = [p for p in pages if p["number"] == 3][0]
+          gate = call("GET", f"api/pages/{p3['id']}/gate"); print("gate", gate)
+          call("PUT", f"api/pages/{p3['id']}", {"status": "approved"})
+          job = call("POST", "api/export", {"chapter_id": 1, "lang": ["en"], "paper": "print", "upscale": False, "allow_partial": True})
+          jid = job["job_id"]
+          for _ in range(120):
+              j = call("GET", f"api/jobs/{jid}")
+              if j["status"] in ("done", "failed", "stopped"): break
+              time.sleep(2)
+          print("export", j["status"], j.get("result", {}).get("url"))
+          assert j["status"] == "done", j.get("log", "")[-800:]
+          PY
+          ls -la "$HOME/Library/Application Support/Dharma Studio/data/exports/"
+          f=$(ls "$HOME/Library/Application Support/Dharma Studio/data/exports/"*.pdf | head -1); mdls -name kMDItemNumberOfPages "$f" 2>/dev/null || true; cp "$f" export-test.pdf
+          pkill -f "test-apps/Dharma Studio.app" || true
+          # GUI launch: open the real window and capture the screen
+          open "test-apps/Dharma Studio.app"; sleep 25; screencapture -x window-test.png || true
+          pkill -f "test-apps/Dharma Studio.app" || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-evidence
+          path: |
+            window-test.png
+            export-test.pdf
+            app.log
+          if-no-files-found: warn
 
       - uses: actions/upload-artifact@v4
         with:
@@ -80,7 +128,9 @@ jobs:
           tag_name: latest
           name: Dharma Studio (latest build)
           make_latest: true
-          files: DharmaStudio.dmg
+          files: |
+            DharmaStudio.dmg
+            desktop/build_info.json
           body: |
             Built from ${{ github.sha }}. Apple Silicon Macs (M1 and later), macOS 14 (Sonoma) or later.
             Install: open the .dmg, drag Dharma Studio to Applications.

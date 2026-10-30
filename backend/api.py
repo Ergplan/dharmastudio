@@ -1157,6 +1157,35 @@ def director_batch(body: BatchIn, session: Session = S()) -> dict[str, Any]:
 # ---------------------------------------------------------------------------------
 
 
+# --- app version and updates (packaged Mac app) -----------------------------------------------------------
+@app.get("/api/app/version")
+def app_version() -> dict:
+    from backend import updater
+
+    return updater.current()
+
+
+@app.get("/api/app/update/check")
+def app_update_check() -> dict:
+    from backend import updater
+
+    return updater.check()
+
+
+@app.get("/api/app/update/status")
+def app_update_status() -> dict:
+    from backend import updater
+
+    return updater.status()
+
+
+@app.post("/api/app/update/apply")
+def app_update_apply() -> dict:
+    from backend import updater
+
+    return updater.apply_async()
+
+
 # --- keys (desktop app: macOS Keychain; source checkout: .env) -------------------------------------------
 _KEY_FIELDS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "topaz": "TOPAZ_API_KEY"}
 

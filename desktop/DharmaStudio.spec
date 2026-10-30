@@ -29,6 +29,8 @@ def tree(src, dest, exts=None, skip=("__pycache__",)):
 # non-Python files the engine and the UI need, at the same relative paths as in the repo
 datas += tree("engine", "engine", exts={".md", ".yaml", ".yml", ".png", ".jpg", ".ttf", ".otf", ".txt", ".json", ".css"})
 datas += tree("frontend/dist", "frontend/dist")
+if (ROOT / "desktop" / "build_info.json").exists():
+    datas.append((str(ROOT / "desktop" / "build_info.json"), "desktop"))
 
 a = Analysis(
     [str(ROOT / "desktop" / "app.py")],

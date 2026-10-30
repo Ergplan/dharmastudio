@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import { JOURNEY_STEPS, ROLES, type JourneyStep, type ModelSelection, type Role } from '@/api/types'
 import { cx, Field, JobProgress, Spinner, usd, Chip, Modal } from '@/components/ui'
 import { useQueryClient } from '@tanstack/react-query'
+import { UpdatesCard } from '@/components/Updater'
 
 const STEP_LABEL: Record<JourneyStep, string> = { manuscript: 'Manuscript', models: 'Models', characters: 'Characters', canvas: 'Canvas', prefill: 'Prefill', pages: 'Pages' }
 
@@ -102,6 +103,7 @@ export default function ProjectScreen() {
                 ))}
               </div>
             </section>
+            <UpdatesCard />
             <section className="card">
               <div className="panel-h">Cost ledger</div>
               {ledger ? (
