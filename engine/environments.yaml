@@ -1,0 +1,33 @@
+environments:
+  - {name: Burning Lanka plain, era: treta, hero: true, films: ["1","3"], build_note: "Full set, path-traced; the hero set of Film 1. The whole island of Lanka: a province-sized green plain before one golden walled city, more cities on the horizon, jungle, rivers and coast, sea on more than one side; smoke from many fires; the golden towers glowing from within, the near ground a sea of ash."}
+  - {name: Ashoka garden and walls of Lanka, era: treta, films: ["2","3"], build_note: "Partial set, used in tellings and memories."}
+  - {name: Shore where the bridge began; ocean descent; gold chamber, era: treta, hero: true, films: ["1","2","3"], build_note: "Chamber as a hero asset with two handprints in the seams; reused in all three films."}
+  - {name: Khandava burning forest, era: dwapara, films: ["1"], build_note: "Light set, Seedance-heavy."}
+  - {name: Kurukshetra, first day at dawn, era: dwapara, films: ["1"], build_note: "Same set as day 17, different dressing and light."}
+  - {name: Kurukshetra, day 17, era: dwapara, hero: true, films: ["1","3"], build_note: "Full set; trenches of red water, crows, two chariots; crowds as Niagara/MassAI."}
+  - {name: Pandava camp at dusk; the burning chariot; bed of arrows, era: dwapara, films: ["1","3"], build_note: "Partial sets."}
+  - {name: The Thar, the bitter well, the Rann, era: prabhas, films: ["1","2"], build_note: "Landscape set."}
+  - {name: Somnath at Prabhas, era: prabhas, hero: true, films: ["1","2"], build_note: "Full set; the second hero set of Film 1. Town walls, great hall with a thousand lamps in tiers, sanctum, dug pit, sea-lit doorway."}
+  - {name: Himalayan ashram and village room, era: ashram, films: ["1"], build_note: "Light set."}
+  - {name: Lower Parel warehouse; Pune kitchen; Juhu beach, era: phala, films: ["2","3"], build_note: "Small sets."}
+  - {name: Girgaon lane, corner temple, chawl and the one room, era: girgaon, hero: true, films: ["1","2","3"], build_note: "Full set; appears in all three films and in the final scene."}
+  - {name: Arvind's flat above the Setu office, era: ashram, films: ["1"], build_note: "Small set, 2 a.m."}
+  - {name: Dead coastline, fab, desert data centre, era: phala, films: ["1","3"], build_note: "Mostly Seedance-native from Sunburst plates."}
+  - {name: फल tower (floors 11, 91, 93, boardroom, medical wing), era: phala, hero: true, films: ["1","2"], build_note: "Full set with floor variants; the 40 m wall of faces is a UI asset."}
+  - {name: Mumbai local train; Marine Drive; Elephanta ferry; Bandra school steps, era: phala, films: ["1","3"], build_note: "Train and ferry interiors; the rest as plates + Seedance."}
+  - {name: Byculla two rooms; the glass hospital, era: phala, films: ["1"], build_note: "Small sets."}
+  - {name: Kalki's apartment; Rhea's Chembur flat, era: phala, films: ["1","2"], build_note: "Small sets."}
+  - {name: Storm drains, Eastern Freeway culvert, creek bridge, era: phala, films: ["1"], build_note: "Tunnel kit + bridge set."}
+  - {name: Museum behind Crawford Market, era: phala, films: ["1","2"], build_note: "Small set; the stone Hanuman statue is a hero asset."}
+  - {name: Setu office Shivajinagar; basement; clinic, era: phala, films: ["1","2"], build_note: "Small sets."}
+  - {name: The core, the archive, the endless tree, era: core, hero: true, films: ["1","2","3"], build_note: "Abstract Unreal environment (Niagara, point cloud), heavily Seedance-refined."}
+  - {name: River settlement and ghat, era: resistance, hero: true, films: ["2"], build_note: "Full set; the Film 2 home base."}
+  - {name: Parashurama's sanctuary, era: resistance, films: ["2","3"], build_note: "Landscape set above the tree line."}
+  - {name: Thar weapons-testing ruin, era: resistance, films: ["2","3"], build_note: "Landscape set."}
+  - {name: Setu's valley, waterfall, jamun-tree grave, era: resistance, hero: true, films: ["2","3"], build_note: "Full set for the Film 2 battle."}
+  - {name: Abandoned Konkan railway station, era: resistance, films: ["2"], build_note: "Small set."}
+  - {name: Camp below the Ghats, era: resistance, films: ["2"], build_note: "Small set; tent with a lamp in the doorway."}
+  - {name: Night roads south; Madurai crossroads; dry riverbed, era: resistance, films: ["3"], build_note: "Plates + one riverbed set."}
+  - {name: Dhanushkodi, era: dhanushkodi, hero: true, films: ["3"], build_note: "Full set; the hero set of Film 3."}
+  - {name: Girgaon room as the archive holds it, era: core, films: ["3"], build_note: "The Girgaon set with an archive grade."}
+  - {name: Pune kitchen table; the footbridge like two hands, era: girgaon, films: ["3"], build_note: "Small set, one exterior."}

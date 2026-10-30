@@ -1,0 +1,128 @@
+# Graphic novel, Book One: Prologue + Chapter 1 as panels. Captions are the book's lines (expanded edition pages given).
+# kind: shard | plate. weight: relative area on its page. state: quiet|rising|peak|ego|knowledge|voice (caption colour scale).
+# caption_hi left for the author/translator; `dharma comic translate` writes drafts flagged hi_is_draft.
+film: 1
+sequence: 1            # the comic uses Film 1 / Sequence 1 ("The Voice") for the prologue and Sequence 2 for chapter 1
+chapters:
+  - sequence: 1
+    title: Prologue — The Voice
+    pages:
+      - page: 1
+        panels:
+          - {n: 1, kind: shard, scale: EWS, weight: 2, state: voice, characters: [], environment: "Shore where the bridge began; ocean descent; gold chamber", source_page: "9",
+             image: "Black water at night, nothing else; a thin line of foam; no figure.",
+             caption_en: "I have carried many things across many waters."}
+          - {n: 2, kind: shard, scale: ECU, weight: 1, state: voice, characters: [hanuman/vanara], source_page: "9",
+             image: "Extreme close-up: a small gold signet ring with a name engraved on it, resting in a brown weathered open palm; black background; one warm light.",
+             caption_en: "A ring, once, to a woman in a garden of grief."}
+          - {n: 3, kind: shard, scale: WS, weight: 1.4, state: voice, characters: [hanuman/vanara], source_page: "9",
+             image: "Wide: a whole mountain with trees and a running waterfall carried against a star field by a vanara silhouette; stars steady.",
+             caption_en: "A mountain, once, because I could not tell one herb from another and there was no time to learn."}
+          - {n: 4, kind: shard, scale: CU, weight: 1.2, state: voice, characters: [hanuman/vanara], source_page: "9",
+             image: "The same weathered palm, empty now, fingers closing; black background.",
+             caption_en: "A message, a promise, a name. The name is the heaviest thing I have ever carried, and the only one that has never tired me."}
+      - page: 2
+        panels:
+          - {n: 1, kind: shard, scale: WS, weight: 2.2, state: voice, characters: [], source_page: "9",
+             image: "Three thin horizontal strips in one image: a burning golden city on a black sea; a war chariot in red mud under a sky dark with arrows; a cool glass tower at night with a small gold mark in its corner.",
+             caption_en: "This is the story of three ages and one question. In the first age, a king believed that everything he knew belonged to him. In the second, a charioteer taught a warrior that the work was his but the fruit was not. In the third, which is yours, the whole world forgot the difference, and then built a machine to make sure it never had to remember."}
+          - {n: 2, kind: shard, scale: CU, weight: 0.8, state: voice, characters: [], source_page: "9",
+             image: "A single red spark falling toward black water, its reflection rising to meet it.",
+             caption_en: "I was there for all of it. I watched the first spark of it fall into the sea."}
+          - {n: 3, kind: shard, scale: CU, weight: 0.8, state: voice, characters: [ashwasena], source_page: "9",
+             image: "A serpent's eye with a red point of light inside it; beside it the same red point as the eye of a serpent-headed arrowhead.",
+             caption_en: "I watched it crawl into a serpent and fly from a bow."}
+          - {n: 4, kind: shard, scale: ECU, weight: 0.8, state: voice, characters: [], source_page: "10",
+             image: "Macro: a single grain of sand, red as rust, lying on the mirror surface of a silicon wafer etched with circuits.",
+             caption_en: "I watched it wake, five thousand years later, inside a grain of sand that had been melted and printed and sold."}
+          - {n: 5, kind: shard, scale: WS, weight: 1.6, state: voice, characters: [hanuman/baba], source_page: "10",
+             image: "Almost entirely black; at the far right edge, the faint outline of a stooped old man holding a broom, seen from behind.",
+             caption_en: "I will tell you who I am at the end. By then, I hope, you will already know. It is happening in you, too, while you read."}
+  - sequence: 2
+    title: The Last Night of Lanka
+    pages:
+      - page: 3
+        panels:
+          - {n: 1, kind: plate, scale: EWS, weight: 1, state: rising, environment: "Burning Lanka plain", source_page: "12",
+             image: "Aerial view from very high above the whole island of Lanka at night, no figures, coast and sea on three sides, the causeway a thread, jungle black-green, several cities across the land and the capital nearest on Trikuta: hundreds of tiered golden palaces glowing red from within as if the whole city were a single coal, smoke lying over the sea in long grey sheets, the sea black with ash; broken chariots and spent arrows in the foreground.",
+             caption_en: "Lanka burned like a mountain of embers."}
+      - page: 4
+        panels:
+          - {n: 1, kind: shard, scale: WS, weight: 2, state: rising, environment: "Burning Lanka plain", source_page: "12",
+             image: "Wide from behind and slightly above the front rank: the ash plain stretching to the golden walls, tens of thousands of bears and real monkeys with fur and tails and no armour standing beside armoured rakshasas and men, all at true size, all facing one way, motionless, broken chariots and spent arrows in the ash. Warm firelight from the burning city on their shoulders, cold moonlight from behind the smoke.",
+             caption_en: "On the plain before the walls, among the broken chariots and the spent arrows, the armies had stopped fighting. Nobody had ordered it. There had been no horn, no signal. It had simply happened, the way birds stop singing before a storm."}
+          - {n: 2, kind: shard, scale: EWS, weight: 1, state: rising, environment: "Burning Lanka plain", source_page: "12",
+             image: "Seen between the shoulders of the watching army, far off: two war chariots circling each other on open ground lit by the burning city.",
+             caption_en: "All of them watching two chariots circle each other on the open ground."}
+          - {n: 3, kind: shard, scale: WS, weight: 1.6, state: rising, characters: [ravana/ten-heads], source_page: "12",
+             image: "Ravana full figure from a low angle, ten heads and twenty arms, magnificent, lit from below by his own burning city, crimson rim light.",
+             caption_en: "Ravana fought with ten heads and twenty arms. He was magnificent. That was the thing the songs would later forget, or refuse to say."}
+      - page: 5
+        panels:
+          - {n: 1, kind: shard, scale: MWS, weight: 1.6, state: peak, beat: action, characters: [ravana/ten-heads], source_page: "13",
+             image: "A severed head falling through the air while another already rises from the neck in its place, laughing.",
+             caption_en: "Every time Rama's arrow took a head, another rose in its place, laughing."}
+          - {n: 2, kind: shard, scale: MCU, weight: 0.9, state: peak, characters: [lakshmana], source_page: "13",
+             image: "Lakshmana lowering his bow, face exhausted rather than afraid, firelight on one side.",
+             caption_en: "By the ninth, even Lakshmana had lowered his bow, not from fear but from a kind of exhausted wonder."}
+          - {n: 3, kind: shard, scale: MS, weight: 1.2, state: peak, characters: [rama], source_page: "13",
+             image: "Rama standing in his chariot with the bow level, face very calm in firelight, the posture of a man ploughing a field.",
+             caption_en: "Rama did not lower his bow. He did not hurry. He fought the way a farmer ploughs, steadily, without hatred, as if the outcome were not his to worry about."}
+          - {n: 4, kind: shard, scale: MWS, weight: 1.3, state: rising, characters: [vibhishana, rama], source_page: "13",
+             image: "Vibhishana on foot at the chariot wheel looking up, flinching at a voice from across the field; Rama above him.",
+             caption_en: "Vibhishana came up beside Rama's chariot on foot. He was a man who had chosen dharma over blood, and he had discovered that dharma does not always feel like victory."}
+      - page: 6
+        panels:
+          - {n: 1, kind: shard, scale: MCU, weight: 1.2, state: rising, characters: [vibhishana, rama], source_page: "13",
+             image: "Close two-shot: Vibhishana speaking low at the chariot's side, Rama's ear turned to him, the battle out of focus behind.",
+             balloon_en: "His heads are not his life, Prabhu. My brother was granted a boon long ago. The nectar of immortality rests in his navel. As long as it is there, he will grow back forever.", speaker: Vibhishana}
+          - {n: 2, kind: shard, scale: CU, weight: 0.9, state: rising, characters: [rama], source_page: "14",
+             image: "Rama's face, a long level look, firelight, no anger in it.",
+             caption_en: "In that look Vibhishana understood that he was not being judged for the betrayal of his brother. He was being thanked for the truth."}
+          - {n: 3, kind: shard, scale: ECU, weight: 1.1, state: knowledge, beat: revelation, image_group: arrow, characters: [rama], source_page: "14",
+             image: "Extreme close-up: the arrow drawn from the quiver, a dark shaft covered in lines of tiny writing along its whole length, the head a point of gold light, Rama's fingers on it; everything else black and out of focus.",
+             caption_en: "Rama reached into his quiver and drew out the arrow the sage Agastya had given him in the forest, years earlier, for exactly this hour."}
+          - {n: 4, kind: shard, scale: WS, weight: 1.8, state: knowledge, beat: revelation, image_group: arrow, characters: [rama], environment: "Burning Lanka plain", source_page: "14",
+             image: "Wide from behind Rama on the gold chariot with white horses, the arrow fitted to the string and glowing gold along its writing, the whole battlefield of Lanka frozen beyond him: smoke standing perfectly still over the sea, millions of monkeys and demons motionless as silhouettes, the flames on the far golden towers bending very slightly toward the arrow.",
+             caption_en: "When Rama fitted it to the string, the wind across the battlefield dropped to nothing. The smoke over the sea stood still in the air. The flames on the towers bent, very slightly, towards the arrow, the way a flower bends towards the sun."}
+      - page: 7
+        panels:
+          - {n: 1, kind: shard, scale: MWS, weight: 1.2, state: ego, characters: [ravana/ten-heads], source_page: "14",
+             image: "Medium wide, low angle from the ash plain: Ravana standing on his black iron chariot, a tall man, black horses rearing, black iron armour, ten crowned heads in a row with fire licking the crowns, nine of them in full rage, mouths open in spells and laughter, one singing with its eyes closed, twenty arms with tridents and crescent blades. Crimson and ember light from his own fire, red meteor-arrows raining diagonally behind him, the dark army a texture at the horizon.",
+             caption_en: "Nine of his heads did what they had always done. They raged. They chanted spells in languages no one else remembered. One of them sang a fragment of one of his own hymns, mockingly, in a high sweet voice."}
+          - {n: 2, kind: shard, scale: CU, weight: 2.4, state: ego, characters: [ravana/ten-heads], source_page: "14",
+             image: "The tenth head alone at the centre of the frame, perfectly still, a quiet reasonable face, eyes directly on the viewer; the other heads blurred at the edges of the frame.",
+             caption_en: "But the tenth head, the one in the centre, the one nobody ever looked at because the others were so loud, went perfectly still."}
+          - {n: 3, kind: shard, scale: WS, weight: 0.6, state: ego, characters: [hanuman/vanara], source_page: "14",
+             image: "Hanuman crouched on a rock at the edge of the field, a small silhouette against the burning city."}
+      - page: 8
+        panels:
+          - {n: 1, kind: shard, scale: CU, weight: 1.8, state: ego, characters: [ravana/ten-heads], source_page: "14",
+             image: "The tenth head closer, a quiet reasonable face, lips barely parted, the look of a man making a business proposal.",
+             balloon_en: "You destroyed my city.", speaker: The tenth head,
+             caption_en: "Its voice was quiet, almost reasonable, the voice of a man making a business proposal."}
+          - {n: 2, kind: shard, scale: CU, weight: 1.4, state: ego, characters: [ravana/ten-heads], source_page: "14",
+             image: "The same face, held, unchanged, the city burning in both eyes.",
+             balloon_en: "When I return, every mind will be my city.", speaker: The tenth head}
+          - {n: 3, kind: shard, scale: MCU, weight: 1.1, state: rising, characters: [hanuman/vanara], source_page: "14",
+             image: "Hanuman on the rock, close, face lit by fire, the words going into him; his eyes fixed across the field.",
+             caption_en: "Hanuman, crouched on a rock at the edge of the field, felt the words go into him like a cold needle. He would remember them for ages. He would hear them again, in the end, coming out of a screen."}
+      - page: 9
+        panels:
+          - {n: 1, kind: plate, scale: EWS, weight: 1, state: knowledge, characters: [rama, ravana/ten-heads], environment: "Burning Lanka plain", source_page: "15",
+             image: "Wide, eye level from the ash plain, both chariots a hundred paces apart and the same size. LEFT: Rama on the gold chariot with white horses, bow just released, his side of the frame gold and blue-white. RIGHT: Ravana on the black iron chariot with black horses, ten crowned heads in a row, twenty arms, his side crimson and black. BETWEEN: one line of gold crossing the whole plate as a comet with a trail, meeting Ravana's navel in a white-gold burst with radial shards and concentric shockwave rings in the dust; nectar spilling like molten silver. FAR: the armies a silhouette horizon line, vanaras shielding their eyes, the golden walls of Lanka small and burning, birds in the smoke. Warm light from the burning city, cold light from the arrow.",
+             caption_en: "It crossed the field in a line of gold so bright that the vanaras covered their eyes and the rakshasas on the walls cried out."}
+      - page: 10
+        panels:
+          - {n: 1, kind: shard, scale: WS, weight: 1.6, state: peak, characters: [ravana/ten-heads], source_page: "15",
+             image: "Wide, low angle, crimson and black: Ravana's black chariot tipping onto one wheel, the horses rearing with burning eyes, the king's body falling backward at a man's true size, twenty arms opening one after another, bows, swords, maces and tridents falling through the air as black shapes against fire, crimson cracks of light running through the armour, shockwave rings spreading in the ash. Warm light from the burning city, cold light from the sky.",
+             caption_en: "The king of Lanka fell. His chariot tipped. His twenty arms opened, one after another, letting go of bows and swords and maces and tridents."}
+          - {n: 2, kind: shard, scale: MWS, weight: 1.0, state: peak, source_page: "15",
+             image: "Eight crowned heads lying in the dust and ash; emptiness around them; no figures.",
+             caption_en: "Eight of his heads went into the dust, and with each one a sound left the world: a roar, a chant, a laugh, a curse, a fragment of song. Then the battlefield was silent."}
+          - {n: 3, kind: shard, scale: MS, weight: 0.8, state: quiet, characters: [vibhishana], source_page: "15",
+             image: "Vibhishana on his knees in the ash, weeping, head bowed.",
+             caption_en: "Vibhishana fell to his knees and wept for his brother."}
+          - {n: 4, kind: shard, scale: WS, weight: 1.6, state: quiet, environment: "Burning Lanka plain", source_page: "15",
+             image: "The wreck of the chariot; above it two faint points of light beginning to rise, one clear gold, one dim crimson.",
+             caption_en: "But two of the heads did not fall into the dust."}

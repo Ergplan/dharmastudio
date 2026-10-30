@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body, #root { height: 100%; }
+body { @apply bg-ink-950 text-ink-200 font-ui text-[13px] antialiased; overscroll-behavior: none; }
+* { scrollbar-width: thin; scrollbar-color: #3a3a43 transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: #3a3a43; border-radius: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+@layer components {
+  .btn { @apply inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-xs font-medium border border-ink-600 bg-ink-800 text-ink-100 hover:bg-ink-700 hover:border-ink-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ink-800 transition-colors whitespace-nowrap select-none; }
+  .btn-primary { @apply border-gold-500/60 bg-gold-500/15 text-gold-300 hover:bg-gold-500/25 hover:border-gold-400; }
+  .btn-danger { @apply border-crimson/60 bg-crimson/10 text-red-300 hover:bg-crimson/25; }
+  .btn-ghost { @apply border-transparent bg-transparent hover:bg-ink-800; }
+  .btn-sm { @apply h-6 px-2 text-2xs; }
+  .btn-icon { @apply w-7 px-0 justify-center; }
+  .input { @apply h-7 px-2 rounded text-xs bg-ink-900 border border-ink-600 text-ink-100 placeholder:text-ink-500 focus:outline-none focus:border-gold-500/70 focus:ring-1 focus:ring-gold-500/30 w-full; }
+  .textarea { @apply input h-auto py-1.5 leading-relaxed resize-y font-book; }
+  .select { @apply input appearance-none pr-6 bg-no-repeat bg-[right_6px_center]; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%237c7c87' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+  .label { @apply text-2xs uppercase tracking-wider text-ink-400 font-medium; }
+  .chip { @apply inline-flex items-center gap-1 h-5 px-1.5 rounded-sm text-2xs border border-ink-600 bg-ink-800 text-ink-300 whitespace-nowrap; }
+  .chip-on { @apply border-gold-500/60 bg-gold-500/15 text-gold-300; }
+  .card { @apply rounded-md border border-ink-700 bg-ink-850; }
+  .panel-h { @apply h-9 flex items-center gap-2 px-3 border-b border-ink-700 text-xs font-medium text-ink-200 shrink-0; }
+  .kbd { @apply inline-block px-1 min-w-[16px] text-center rounded-sm border border-ink-600 bg-ink-900 text-2xs text-ink-400 font-mono leading-4; }
+  .empty { @apply text-ink-500 text-xs italic p-4 text-center border border-dashed border-ink-700 rounded-md; }
+}

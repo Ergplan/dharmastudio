@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/studio.db*
+data/candidates/
+data/refs/
+data/silhouettes/
+data/exports/
+data/artifacts/
+data/enhanced/
+data/manuscript/
+data/canvases/
+frontend/node_modules/
+frontend/dist/
+.pytest_cache/
+data/ch1_candidates/
+# source images supplied with the repo (140 MB): kept on disk, not in git
+data/ch1_candidates/
+docs/screens/real_failure.png

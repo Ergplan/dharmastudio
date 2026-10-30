@@ -1,0 +1,152 @@
+# Character bible. forms[].key is what shot.characters[] references, e.g. "hanuman/baba".
+characters:
+  - name: Hanuman
+    human_voice_required: true
+    films: ["1", "2", "3"]
+    signature: >-
+      Forms (a), (c) and (d) are the same face and stoop in three centuries; the pencil drawing must match.
+      Greying across Film 2 is driven by the Remembrance Index. A faint ash mark at the brow in every form:
+      Hanuman is Rudra's portion, and the beach reveal (his face and Shiva's one face for twelve frames) is
+      recognised, not announced.
+    forms:
+      - {key: hanuman/baba, description: "Thin old dock worker, mended dhoti, slight stoop, laughing eyes, small scar on chin, rope-callused palms, broom."}
+      - {key: hanuman/vanara, description: "Vanara at Lanka and on Arjuna's flag; young Hanuman at the leap. A real monkey: langur face, fur, long tail, no armour; a cloth and a sash, the mace."}
+      - {key: hanuman/lamp-keeper, description: "Prabhas, 1026: cloth over shoulder, brass oil can, same face and stoop."}
+      - {key: hanuman/flower-seller, description: "Girgaon temple step: basket of marigolds and jasmine, same face and stoop."}
+      - {key: hanuman/shadow, description: "Vast vanara shadow against the evening sky over the river, tail against the clouds."}
+      - {key: hanuman/mountain, description: "Mountain-tall in the sea, sea parting round his knees, tail curled against the clouds."}
+  - name: Kalki
+    human_voice_required: true
+    films: ["1", "2", "3"]
+    signature: "The braid is the through-line: hers at 11, Meera's at the end. The wanted image is a prop."
+    forms:
+      - {key: kalki/child, description: "Age 11, Girgaon: solemn, the longest braid in Girgaon, arms folded at the temple."}
+      - {key: kalki/architect, description: "32, Division architect: long hair, immaculate."}
+      - {key: kalki/fugitive, description: "Hair cropped with kitchen scissors, mud, Setu handset; borrowed sari in Girgaon."}
+      - {key: kalki/flame, description: "Carrying the golden flame; underwater; in the core."}
+      - {key: kalki/after, description: "One year later: heavier, braiding Meera's hair."}
+  - name: Ravana
+    human_voice_required: true
+    films: ["1", "2", "3"]
+    signature: "Crimson and gold are never confused. Council scenes give each head a distinct voice."
+    forms:
+      - {key: ravana/ten-heads, description: "Ten-headed, twenty-armed king at Lanka; the tenth central head quiet."}
+      - {key: ravana/one-head, description: "One head, courteous, in the ashoka garden."}
+      - {key: ravana/screen, description: "Crimson ember / red pulse / ten crimson faces on screens; council in the cold corner of the core."}
+      - {key: ravana/tower, description: "Crimson tower of light in the core."}
+      - {key: ravana/golden-head, description: "Single old scholar's face in a gold flame that does not flicker."}
+      - {key: ravana/young, description: "Penitent in the forest, devotee under Kailash, father on the walls of Lanka."}
+  - name: Shiva
+    films: ["1", "3"]
+    signature: >-
+      Cameo, no dialogue. Chant: Varaha Purana 70.47 (Rudra Gita, Rudra to Agastya). Ash-white skin, blue at the
+      throat, matted hair, silver crescent, a still cobra; never crimson or gold; eyes closed at Somnath, open on
+      the beach; never a lip-synced close-up; presence shown first by what it does to the frame.
+    forms:
+      - {key: shiva/flames, description: "Somnath, 1026: the same small seated figure in each of the thousand flames as the lamp-keeper looks up; the stone stays stone."}
+      - {key: shiva/kailash, description: "Young Ravana's memory: the mountain lifted, pinned by a single toe, forgiving the song (Film 3, The Burning Head)."}
+      - {key: shiva/in-hanuman, description: "Dhanushkodi: for twelve frames Hanuman's face and Shiva's are one face, ash on the brow, the crescent, eyes open."}
+  - name: Rama
+    films: ["1", "2", "3"]
+    reference: refs/rama_reference.png
+    forms: [{key: rama, description: "Calm archer; Agastya's inscribed arrow; the hand on Hanuman's head; the prince who gives the ring. LOOK: Rama, locked look (reference: refs/rama_reference.png): a young man of about thirty, dark golden-brown skin with a warm glow, clean-shaven, serene oval face, long wavy black hair gathered in a high top-knot with loose waves falling to the shoulders, eyes OPEN, large, dark and calm, level gaze directed at whatever the scene names (never closed, never downcast), a white U-shaped Vaishnava tilak with a red centre line on the forehead. Bare chest and bare right shoulder; one length of translucent saffron-orange cloth draped over the left shoulder and wound across the chest and waist, its ends lifting in the wind; a double strand of small dark rudraksha beads at the throat, a rudraksha bead band on the right upper arm; no crown, no gold jewellery, no armour. The great bow carried over the left shoulder, a quiver at the back. A soft disc of gold light behind the head in close shots."}]
+  - name: Sita
+    films: ["2", "3"]
+    forms: [{key: sita, description: "Under the ashoka tree, thin, in the clothes she was taken in, a blade of grass held between herself and the king."}]
+  - name: Krishna
+    human_voice_required: true
+    films: ["1", "3"]
+    forms:
+      - {key: krishna/charioteer, description: "Peacock feather, no weapon, hands on the reins."}
+      - {key: krishna/flute, description: "Flute-player in the peacock-blue sky; barefoot on the tideline."}
+  - name: Arjuna
+    films: ["1", "3"]
+    forms: [{key: arjuna, description: "Archer; sets the bow down on the first day; the jewelled crown."}]
+  - name: Karna
+    films: ["1"]
+    forms: [{key: karna, description: "Son of the sun; the serpent-headed arrow."}]
+  - name: Vibhishana
+    films: ["1"]
+    forms: [{key: vibhishana, description: "Ravana's brother at Rama's chariot."}]
+  - name: Lakshmana
+    films: ["1"]
+    forms: [{key: lakshmana, description: "Rama's brother, lowered bow."}]
+  - name: Bhishma
+    films: ["3"]
+    forms: [{key: bhishma, description: "On the bed of arrows, evening."}]
+  - name: Ashwasena
+    films: ["1"]
+    forms: [{key: ashwasena, description: "Naga child in smoke; dark-scaled arrowhead with red eyes; red smoke trail."}]
+  - name: Mahmud of Ghazni
+    films: ["1"]
+    forms: [{key: mahmud, description: "Not tall, pox-scarred, bright moneylender's eyes with something red behind them; silver cup."}]
+  - name: The young scholar
+    films: ["1"]
+    forms: [{key: scholar, description: "Thin, ink-stained fingers, notebook, book-learned Sanskrit."}]
+  - name: Arvind Rao
+    films: ["1", "2"]
+    forms:
+      - {key: arvind/young, description: "Young engineer at the ashram."}
+      - {key: arvind/grey, description: "Grey, at Setu, interviewing Vikram."}
+      - {key: arvind/dying, description: "Sixty, in bed above the Setu office, holding the fruit."}
+  - name: Anaya Rao
+    human_voice_required: true
+    films: ["1", "2", "3"]
+    forms:
+      - {key: anaya/young, description: "Twenty, at her father's deathbed."}
+      - {key: anaya/ceo, description: "CEO of Setu, early grey streak, small and sharp."}
+  - name: Vikram Sood
+    human_voice_required: true
+    films: ["1", "2", "3"]
+    forms:
+      - {key: vikram/warehouse, description: "34, Lower Parel warehouse."}
+      - {key: vikram/division, description: "54, silver-haired, kind."}
+      - {key: vikram/broken, description: "Sunburnt, slept-in suit, at the Dhanushkodi terminal."}
+      - {key: vikram/teacher, description: "A year later, a schoolteacher."}
+  - name: Vikram's father
+    films: ["2", "3"]
+    forms: [{key: vikram-father, description: "Thin upright schoolteacher reading the paper aloud; Juhu."}]
+  - name: Vikram's daughter
+    films: ["3"]
+    forms: [{key: vikram-daughter, description: "Fourteen, on the Bandra school steps."}]
+  - name: Meera
+    human_voice_required: true
+    films: ["1", "2", "3"]
+    signature: "Her mother's paper photograph: laughing, squinting, hair across her face."
+    forms:
+      - {key: meera/9, description: "Nine: stitches on the kitchen table, Elephanta ferry, the hospital."}
+      - {key: meera/10, description: "Ten: thin, brown, determined, the photograph."}
+  - name: Asha
+    films: ["1"]
+    forms: [{key: asha, description: "Ward nurse from Byculla who laughs at everything; dying in a glass hospital."}]
+  - name: Kamala Joshi (Aaji)
+    human_voice_required: true
+    films: ["1", "2", "3"]
+    signature: "Mended glasses, the sooty brass lamp, the comb with one tooth missing."
+    forms: [{key: aaji, description: "Small widow in a sari washed almost white; cross-legged with the comb; the cassette voice."}]
+  - name: Shanta-tai
+    films: ["2", "3"]
+    forms: [{key: shanta-tai, description: "Tiny, thick glasses, shelling peas on a stool in the doorway; the biscuit tin with a bridge on the lid."}]
+  - name: Neel
+    human_voice_required: true
+    films: ["2", "3"]
+    forms: [{key: neel, description: "24, thin, quick, whole-face laugh; later silent and apart; the old phone."}]
+  - name: Tara
+    films: ["2", "3"]
+    forms: [{key: tara, description: "16-19, shaking hands, violent green toenails, drawings of bridges like hands; steady hands at the end."}]
+  - name: Rhea Kulkarni
+    films: ["1", "2", "3"]
+    forms: [{key: rhea, description: "26, soft voice, goes red; calibrated and calm on floor 11; restored a year later."}]
+  - name: Ishaan
+    films: ["2"]
+    forms: [{key: ishaan, description: "12, draws Commander Gutar the pigeon."}]
+  - name: Parashurama
+    films: ["2", "3"]
+    forms: [{key: parashurama, description: "Very tall, grey-bearded, broad, still; worn axe."}]
+  - name: Ashwatthama
+    films: ["2", "3"]
+    forms: [{key: ashwatthama, description: "Grey blanket in savage heat, weeping forehead wound, flies; the grey cylinder with one red light."}]
+  - name: The फल voice / UI
+    films: ["1", "2", "3"]
+    signature: "The UI is a character: gold on black, typeset in Unreal UMG, never generated."
+    forms: [{key: phala/ui, description: "The 2:45 prompt; the 3:07 approval; Early Comfort prompt; REMEMBRANCE INDEX; the final two-choice question."}]
