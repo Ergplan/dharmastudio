@@ -17,7 +17,7 @@ export function RunBadge({ status }: { status: string }) {
   return <span className={cx('chip uppercase', STATUS_TONE[status] ?? '')}>{status === 'running' && <Loader2 size={9} className="animate-spin" />}{status}</span>
 }
 
-export function RunTimeline({ runId, onPickRun }: { runId: ID | null; onPickRun?: (id: ID) => void }) {
+export function RunTimeline({ runId, onPickRun, onReuse }: { runId: ID | null; onPickRun?: (id: ID) => void; onReuse?: () => void }) {
   const { data: run, isLoading } = useRun(runId)
   const stop = useStopRun()
   const nav = useNavigate()
@@ -27,13 +27,14 @@ export function RunTimeline({ runId, onPickRun }: { runId: ID | null; onPickRun?
   const active = run.status === 'running' || run.status === 'queued'
   const panels = run.plan?.panels ?? []
   return (
-    <div className="h-full overflow-auto p-4 flex flex-col gap-4 text-xs">
+    <div className="h-full overflow-auto p-4 flex flex-col gap-4 text-xs [&>*]:shrink-0">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm text-ink-100 font-medium">Run #{run.id}</span>
         <RunBadge status={run.status} />
         <span className="text-ink-400">{run.manuscript.label}{run.page_number ? ` · page ${run.page_number}` : ''}</span>
         <span className="font-mono text-2xs text-ink-400">${run.cost_usd.toFixed(3)}{run.estimate?.usd !== undefined ? ` / est. $${run.estimate.usd.toFixed(2)} · cap $${(run.settings.budget_usd ?? 0).toFixed(2)}` : ''}</span>
         <div className="flex-1" />
+        {onReuse && run.kind === 'page' && run.brief?.action && <button className="btn btn-sm" onClick={onReuse} title="Put this run's brief back in the form (for a new page)">Reuse brief</button>}
         {active && <button className="btn btn-sm btn-danger" onClick={() => stop.mutate(run.id)}><Square size={10} /> Stop</button>}
         {run.page_id && !active && (
           <button className="btn btn-sm btn-primary" onClick={() => { ed.setChapter(run.chapter_id); setTimeout(() => ed.setPage(run.page_id!), 0); nav('/pages') }}>Open in Pages <ArrowRight size={11} /></button>

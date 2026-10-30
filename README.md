@@ -124,6 +124,27 @@ The PDF renderer is Playwright Chromium; if it is not installed the export falls
 Demo: `scripts/motion_demo.py` (pages 9 and 6 of Chapter 1 → moments, QRs placed, site built, screenshots in
 `docs/screens/`, films and posters in `docs/demo/`).
 
+## Art Director
+
+An agent inside the app (rail → **Director**, or **Direct with Art Director** on the Pages toolbar) that turns a short
+scene brief into a finished page in `review`, keeping the author's master art-direction prompt
+(`engine/director/master_prompt.md`, verbatim and constant) as its guardrails. Chapters are listed by Book and
+**manuscript** number (Book Two = 22–41). The brief: manuscript chapter, exact action, characters (studio form keys,
+locked only), setting (prefilled from the chapter's scene settings), dialogue / narration to reproduce (select text in
+the manuscript pane). One click runs: check → plan (script_writer; callouts verbatim, re-asked once, deterministic
+fallback) → layout (3–5 panels: 1 dominant, 2–3 narrative, 1 detail, or a full-page plate) → prompt (condensed master
+prompt §1/§2/§4/§5/§10 + the full §11 negative list + locked looks + brief; never asks for text) → paint (locked
+references attached) → critic (10-point final quality test + deterministic checks) → up to 2 revisions with the
+critic's fix → pre-select the best → flag anything unproven. Every step is a `DirectorRun` (`GET /api/art-director/runs/{id}`);
+there is a cost estimate, a budget cap and Stop. Without keys the plan is deterministic, images are placeholders and
+candidates are *unjudged* — flagged for the author, never silently accepted.
+
+**Covers & posters** (a tab of the Director): the poster art prompt is composed from the volume's chapters (§8, §9),
+painted with no text, and the studio typesets THE CYCLE OF DHARMA, the volume line, RACHIT AGARWAL and the publisher
+line in Cinzel — PNG + PDF at 300 ppi, 2:3. The author's current cover can be uploaded as a reference; it is kept in
+`data/covers/` (never committed). Routes: `backend/director_api.py`; engine: `engine/director/`; tests:
+`tests/test_director.py` (the book-dependent ones skip without the local book).
+
 ## Tests
 
 ```bash

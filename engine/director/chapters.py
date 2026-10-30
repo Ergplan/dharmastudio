@@ -24,7 +24,7 @@ ERA_TO_AGE = {
 AGE_KEYWORDS = {
     "treta": ["lanka", "ravana", "rama", "sita", "vibhishana", "lakshmana", "agastya", "vanara", "ashoka", "trikuta", "rakshasa", "kumbhakarna", "indrajit", "ayodhya"],
     "dwapara": ["kurukshetra", "arjuna", "krishna", "karna", "bhishma", "drona", "pandava", "kaurava", "gandiva", "chariot", "ashwasena", "duryodhana", "yudhishthira", "dwarka"],
-    "kali": ["फल", "phala", "index", "screen", "data", "server", "network", "terminal", "credits", "setu", "pune", "mumbai", "girgaon", "phone", "drone", "city", "camp", "algorithm", "core", "kalki", "meera", "neel", "anaya", "vikram"],
+    "kali": ["फल", "phala", "somnath", "prabhas", "ghazni", "mahmud", "sultan", "ashram", "index", "screen", "data", "server", "network", "terminal", "credits", "setu", "pune", "mumbai", "girgaon", "phone", "drone", "city", "camp", "algorithm", "core", "kalki", "meera", "neel", "anaya", "vikram"],
 }
 
 NUMBER_WORDS = {1: "ONE", 2: "TWO", 3: "THREE", 4: "FOUR", 5: "FIVE"}

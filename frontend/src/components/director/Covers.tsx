@@ -27,7 +27,7 @@ export function Covers() {
   return (
     <div className="h-full flex min-h-0">
       <style>{`@font-face{font-family:'Cinzel Decorative';src:url(/api/fonts/CinzelDecorative-Bold.ttf);font-weight:700}@font-face{font-family:'Cinzel';src:url(/api/fonts/Cinzelwght.ttf);font-weight:400 900}`}</style>
-      <div className="w-[26rem] shrink-0 border-r border-ink-800 overflow-auto p-3 flex flex-col gap-3 text-xs">
+      <div className="w-[26rem] shrink-0 border-r border-ink-800 overflow-auto p-3 flex flex-col gap-3 text-xs [&>*]:shrink-0">
         <div className="flex gap-1">{covers.map(v => <button key={v.volume_id} className={cx('chip', v.volume_id === vid && 'chip-on')} onClick={() => setVid(v.volume_id)}>Volume {v.volume}</button>)}</div>
         <div>
           <div className="font-book text-base text-ink-100">{c.text.volume_line}</div>

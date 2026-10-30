@@ -4,7 +4,7 @@ import { Clapperboard, BookOpenText, ShieldCheck, Activity, Image as ImageIcon }
 import { cx, Spinner } from '@/components/ui'
 import type { ID } from '@/api/types'
 import { useEditor } from '@/store/editor'
-import { checkBrief, estimateRun, useDChapter, useDChapters, useDirect, useDirectChapter, useRuns, AGE_TONE, type Brief, type BriefCheck, type Estimate, type RunSettings } from '@/components/director/api'
+import { checkBrief, estimateRun, useDChapter, useDChapters, useDirect, useDirectChapter, useRun, useRuns, AGE_TONE, type Brief, type BriefCheck, type Estimate, type RunSettings } from '@/components/director/api'
 import { ChapterPicker } from '@/components/director/ChapterPicker'
 import { ManuscriptPane } from '@/components/director/ManuscriptPane'
 import { BriefForm, PaletteChips } from '@/components/director/BriefForm'
@@ -33,16 +33,20 @@ export default function DirectorScreen() {
   const [centre, setCentre] = useState<'manuscript' | 'run' | 'guardrails'>(params.get('run') ? 'run' : 'manuscript')
   const [runId, setRunId] = useState<ID | null>(Number(params.get('run')) || null)
   const { data: runs = [] } = useRuns(chapterId)
+  const { data: activeRun } = useRun(runId)
+  const reuse = () => { if (activeRun && activeRun.chapter_id === chapterId && brief) setBrief({ ...brief, ...activeRun.brief, page_id: null, page_number: ch?.next_page_number ?? null } as Brief) }
 
   // a fresh brief per chapter; ?page= pre-selects the page (from the Pages screen's "Direct with Art Director")
   useEffect(() => {
     if (!ch) return
-    if (brief?.chapter_id === ch.id) return
+    const restoring = !!(activeRun && activeRun.chapter_id === ch.id && activeRun.brief?.action && Number(params.get('run')) === activeRun.id && !brief?.action)
+    if (brief?.chapter_id === ch.id && !restoring) return
     const pid = Number(params.get('page')) || null
     const pg = ch.pages_list.find(p => p.id === pid)
-    setBrief({ ...EMPTY(ch.id), setting: ch.setting.slice(0, 1200), page_id: pg?.id ?? null, page_number: pg?.number ?? ch.next_page_number })
+    const fromRun = restoring ? activeRun!.brief : null  // ?run= restores the brief that made it
+    setBrief({ ...EMPTY(ch.id), setting: ch.setting.slice(0, 1200), ...(fromRun ?? {}), page_id: pg?.id ?? null, page_number: pg?.number ?? ch.next_page_number } as Brief)
     setCheck(null)
-  }, [ch]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ch, activeRun?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // live deterministic check + estimate (debounced)
   useEffect(() => {
@@ -97,7 +101,7 @@ export default function DirectorScreen() {
                 }} />
               ) : centre === 'run' ? (
                 <div className="h-full flex min-h-0">
-                  <div className="flex-1 min-w-0"><RunTimeline runId={runId} onPickRun={setRunId} /></div>
+                  <div className="flex-1 min-w-0"><RunTimeline runId={runId} onPickRun={setRunId} onReuse={reuse} /></div>
                   <div className="w-[13rem] shrink-0 border-l border-ink-800 overflow-auto p-2 flex flex-col gap-1">
                     <div className="label mb-1">Runs in this chapter</div>
                     {runs.length === 0 && <div className="text-2xs text-ink-500 italic">none yet</div>}

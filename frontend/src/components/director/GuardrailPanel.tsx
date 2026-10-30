@@ -11,7 +11,7 @@ export function GuardrailPanel({ age }: { age?: Age }) {
   const [raw, setRaw] = useState(false)
   if (isLoading || !g) return <Spinner />
   return (
-    <div className="h-full overflow-auto p-4 flex flex-col gap-4 text-xs">
+    <div className="h-full overflow-auto p-4 flex flex-col gap-4 text-xs [&>*]:shrink-0">
       <div className="flex items-center gap-2">
         <ShieldCheck size={15} className="text-gold-300" />
         <span className="text-sm text-ink-100 font-medium">Master art direction — the constant style authority</span>
