@@ -3,6 +3,7 @@ import { api } from './client'
 import type {
   Project, Models, ModelSelection, Volume, Canvas, Chapter, Character, CharacterRef, Page, Panel, Candidate, Silhouette, Job, Ledger, Gate,
   ExportRecord, ExportRequest, ExportEstimate, DirectorRequest, DirectorEstimate, ID,
+  FontInfo, PresetsInfo, VolumeTypography, TypographySetting, PanelPalette,
 } from './types'
 import { useToasts } from '@/store/toasts'
 
@@ -23,6 +24,10 @@ export const qk = {
   jobs: ['jobs'] as const,
   job: (id: ID) => ['job', id] as const,
   ledger: ['ledger'] as const,
+  fonts: ['fonts'] as const,
+  presets: ['typography-presets'] as const,
+  volumeType: (id: ID) => ['volume-typography', id] as const,
+  palette: (id: ID) => ['palette', id] as const,
 }
 
 type QOpts<T> = Omit<UseQueryOptions<T>, 'queryKey' | 'queryFn'>
@@ -47,6 +52,11 @@ export const useRender = (id: ID | null, canvas: string | null, lang: 'en' | 'hi
 export const useGate = (id: ID | null) => useQuery({ queryKey: qk.gate(id ?? 0), queryFn: () => api.get<Gate>(`/api/pages/${id}/gate`), enabled: !!id })
 export const useSilhouettes = () => useQuery({ queryKey: qk.silhouettes, queryFn: () => api.get<Silhouette[]>('/api/silhouettes') })
 export const useExports = () => useQuery({ queryKey: qk.exports, queryFn: () => api.get<ExportRecord[]>('/api/exports') })
+export const useFonts = () => useQuery({ queryKey: qk.fonts, queryFn: () => api.get<FontInfo[]>('/api/fonts'), staleTime: Infinity })
+export const usePresets = () => useQuery({ queryKey: qk.presets, queryFn: () => api.get<PresetsInfo>('/api/typography/presets'), staleTime: Infinity })
+export const useVolumeTypography = (id: ID | null) => useQuery({ queryKey: qk.volumeType(id ?? 0), queryFn: () => api.get<VolumeTypography>(`/api/volumes/${id}/typography`), enabled: !!id })
+export const usePanelPalette = (id: ID | null, enabled = true) => useQuery({ queryKey: qk.palette(id ?? 0), queryFn: () => api.get<PanelPalette>(`/api/panels/${id}/palette`), enabled: !!id && enabled })
+export const useSaveVolumeTypography = () => useApiMutation(({ id, ...body }: { id: ID } & TypographySetting) => api.put<VolumeTypography>(`/api/volumes/${id}/typography`, body), [['volume-typography'], qk.volumes, ['render'], ['pages'], ['page']])
 export const useLedger = () => useQuery({ queryKey: qk.ledger, queryFn: () => api.get<Ledger>('/api/ledger') })
 export const useActiveJobs = () => useQuery({ queryKey: qk.jobs, queryFn: () => api.get<Job[]>('/api/jobs?active=1'), refetchInterval: 2000 })
 export const useJob = (id: ID | null) =>
@@ -94,7 +104,7 @@ export const useSaveVolume = () => useApiMutation(({ id, ...body }: { id: ID; ca
 export const useSaveCharacter = () => useApiMutation(({ id, ...body }: { id: ID; look?: string; locked?: boolean; name?: string }) => api.put<Character>(`/api/characters/${id}`, body), [qk.characters, ['gate'], qk.project])
 export const useSaveRef = () => useApiMutation(({ cid, rid, ...body }: { cid: ID; rid: ID; is_primary?: boolean; approved?: boolean }) => api.put<CharacterRef>(`/api/characters/${cid}/refs/${rid}`, body), [qk.characters])
 export const useSaveChapter = () => useApiMutation(({ id, ...body }: { id: ID; title?: string; pages_from?: number | null; pages_to?: number | null }) => api.put<Chapter>(`/api/chapters/${id}`, body), [qk.chapters])
-export const useSavePage = () => useApiMutation(({ id, ...body }: { id: ID } & Partial<Pick<Page, 'beat' | 'status' | 'marginalia' | 'canvas_override'>>) => api.put<Page>(`/api/pages/${id}`, body), [['pages'], ['page'], ['render'], qk.exports])
+export const useSavePage = () => useApiMutation(({ id, ...body }: { id: ID } & Partial<Pick<Page, 'beat' | 'status' | 'marginalia' | 'canvas_override' | 'typography_override'>>) => api.put<Page>(`/api/pages/${id}`, body), [['pages'], ['page'], ['render'], qk.exports])
 export const useSavePanel = () => useApiMutation(({ id, ...body }: { id: ID } & Partial<Omit<Panel, 'id' | 'page_id' | 'candidates'>>) => api.put<Panel>(`/api/panels/${id}`, body), [['pages'], ['page'], ['render'], ['gate']])
 export const useSelectCandidate = () => useApiMutation(({ id, candidate_id }: { id: ID; candidate_id: ID }) => api.post<Panel>(`/api/panels/${id}/select`, { candidate_id }), [['pages'], ['page'], ['render']])
 export const useRejectCandidate = () => useApiMutation(({ id, cid, rejected }: { id: ID; cid: ID; rejected: boolean }) => api.put<Candidate>(`/api/panels/${id}/candidates/${cid}`, { rejected }), [['pages'], ['page']])

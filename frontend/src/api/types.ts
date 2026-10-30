@@ -71,6 +71,66 @@ export interface Models {
   selected: ModelSelection
 }
 
+// ---------- typography (engine/typography.py) ----------
+export type SizeStep = 'S' | 'M' | 'L' | 'XL'
+export const SIZE_STEPS: SizeStep[] = ['S', 'M', 'L', 'XL']
+export type ColourMode = 'smart' | 'state' | 'custom'
+export type FontRole = 'title' | 'narration' | 'dialogue' | 'sfx'
+export type FontKey = 'title_font' | 'narration_font' | 'dialogue_font' | 'sfx_font' | 'hi_title_font' | 'hi_narration_font' | 'hi_dialogue_font'
+export const FONT_KEYS: { key: FontKey; role: FontRole; lang: 'en' | 'hi'; label: string }[] = [
+  { key: 'title_font', role: 'title', lang: 'en', label: 'Title' },
+  { key: 'narration_font', role: 'narration', lang: 'en', label: 'Narration' },
+  { key: 'dialogue_font', role: 'dialogue', lang: 'en', label: 'Dialogue' },
+  { key: 'sfx_font', role: 'sfx', lang: 'en', label: 'SFX' },
+  { key: 'hi_title_font', role: 'title', lang: 'hi', label: 'Hindi title' },
+  { key: 'hi_narration_font', role: 'narration', lang: 'hi', label: 'Hindi narration' },
+  { key: 'hi_dialogue_font', role: 'dialogue', lang: 'hi', label: 'Hindi dialogue' },
+]
+export interface CalloutColours { box: string; text: string; border?: string }
+export type TypographySetting = Partial<Record<FontKey, string | null>> & {
+  preset?: string | null
+  size?: SizeStep | null
+  title_size?: SizeStep | null
+  line_height?: number | null
+  colour_mode?: ColourMode | null
+  colours?: Partial<Record<TextState, Partial<CalloutColours>>> | null
+}
+export interface FontFaceInfo { file: string; url: string; weight: string; style: string }
+export interface FontInfo {
+  id: string
+  family: string
+  script: 'latin' | 'devanagari' | 'both'
+  roles: FontRole[]
+  note: string
+  files: Record<string, string>
+  faces: FontFaceInfo[]
+  text_weight: number
+  title_weight: number
+  preview: Partial<Record<'latin' | 'devanagari', Record<FontRole, string>>>
+  licence: string | null
+}
+export interface TypePreset { id: string; name: string; note: string; fonts: Record<FontKey, string>; families: Record<FontKey, string> }
+export interface PresetsInfo {
+  presets: TypePreset[]
+  sizes: Record<SizeStep, number>
+  default: TypographySetting
+  colour_modes: ColourMode[]
+  states: TextState[]
+  state_colours: Record<TextState, CalloutColours>
+}
+export interface ResolvedTypography {
+  preset: string | null
+  size: SizeStep | null
+  title_size: SizeStep | null
+  line_height: number
+  colour_mode: ColourMode
+  colours: TypographySetting['colours']
+  fonts: Record<FontKey, { id: string; family: string }>
+  scale: { size: number; title_size: number }
+}
+export interface VolumeTypography { volume_id: ID; stored: TypographySetting; typography: TypographySetting; resolved: ResolvedTypography }
+export interface PanelPalette { palette: string[]; swatches: (CalloutColours & { contrast: number })[]; auto: CalloutColours & { contrast: number }; colour_mode: ColourMode; pinned: CalloutColours | null }
+
 export interface Volume {
   id: ID
   project_id: ID
@@ -79,6 +139,7 @@ export interface Volume {
   canvas_id: ID | null
   era_default: string
   suggested_canvas_keys?: string[]
+  typography?: TypographySetting
 }
 
 export interface Canvas {
@@ -94,6 +155,7 @@ export interface Canvas {
   preview: string
   /** flat colour of the paper, for swatches (paper_texture is the texture image path) */
   swatch?: string
+  texture_url?: string | null
   description?: string
 }
 
@@ -153,6 +215,8 @@ export interface Page {
   thumb?: string
   artifact?: string | null
   panels?: Panel[]
+  typography_override?: TypographySetting | null
+  typography?: ResolvedTypography
 }
 
 export interface Panel {
@@ -175,6 +239,10 @@ export interface Panel {
   selected_candidate_id: ID | null
   locked_shape: boolean
   candidates: Candidate[]
+  /** lettered sound effect, drawn in the SFX font at the shard's top-left; empty = none */
+  sfx?: string
+  /** pinned callout colours; null = automatic (the volume's colour mode) */
+  text_colours?: CalloutColours | null
 }
 
 export interface Candidate {

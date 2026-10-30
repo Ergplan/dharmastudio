@@ -5,6 +5,7 @@ import { UpdateBanner } from './components/Updater'
 import ProjectScreen from './screens/Project'
 import CharactersScreen from './screens/Characters'
 import CanvasScreen from './screens/Canvas'
+import TypographyScreen from './screens/Typography'
 import ScriptScreen from './screens/Script'
 import PagesScreen from './screens/Pages'
 import SilhouettesScreen from './screens/Silhouettes'
@@ -12,12 +13,12 @@ import ExportScreen from './screens/Export'
 
 export default function App() {
   const nav = useNavigate()
-  // Global navigation shortcuts: Alt+1..7 switch screens (plain digits are reserved for panel selection on Pages).
+  // Global navigation shortcuts: Alt+1..8 switch screens (plain digits are reserved for panel selection on Pages).
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (!e.altKey || e.ctrlKey || e.metaKey) return
       const i = Number(e.key) - 1
-      const routes = ['/project', '/characters', '/canvas', '/script', '/pages', '/silhouettes', '/export']
+      const routes = ['/project', '/characters', '/canvas', '/typography', '/script', '/pages', '/silhouettes', '/export']
       if (i >= 0 && i < routes.length) { e.preventDefault(); nav(routes[i]) }
     }
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h)
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/characters" element={<CharactersScreen />} />
             <Route path="/characters/:id" element={<CharactersScreen />} />
             <Route path="/canvas" element={<CanvasScreen />} />
+            <Route path="/typography" element={<TypographyScreen />} />
             <Route path="/script" element={<ScriptScreen />} />
             <Route path="/pages" element={<PagesScreen />} />
             <Route path="/silhouettes" element={<SilhouettesScreen />} />
