@@ -515,20 +515,28 @@ def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView
             extra = "clip-path:polygon(0 4%,4% 0,30% 2%,55% 0,80% 3%,100% 1%,99% 96%,70% 100%,40% 97%,10% 100%,1% 95%);"
         border = "" if edge in ("none", "fracture", "shard", "glow", "torn") else f"border:{edge};"
         fam = "'DevSerif','Georgia',serif" if lang == "hi" else "'Georgia','Times New Roman',serif"
-        size = "2.75mm" if lang == "hi" else "2.6mm"
+        size = "3.05mm" if lang == "hi" else "2.9mm"
         box, text = st["box"], st["text"]
-        if parchment_boxes and st["box"] == "#efe4c9":
+        # on paper canvases narration (quiet/voice/rising) is sepia serif on a parchment box; peak/ego/knowledge keep their
+        # dark intensity boxes so the colour logic still reads
+        if parchment_boxes and p.text_state in ("quiet", "voice", "rising"):
             text = cs.get("text", SEPIA)
             if opts.print:
-                box = "transparent"  # the paper is the stock; only the ink frame prints
+                # boxes sit over artwork, so they must print a fill; a parchment tone matched to the stock
+                box = cs.get("box_print", "#efe3c6")
             else:
-                box = cs.get("box", "rgba(239,228,201,0.55)")
+                box = cs.get("box_opaque", "rgba(241,231,206,0.94)")  # readable over any artwork
             border = f"border:{cs.get('border', '0.2mm solid ' + SEPIA)};"
             if cs.get("textured", True) and not opts.print:
                 extra += "background-image:repeating-linear-gradient(0deg,rgba(90,70,40,0.045) 0 0.3mm,transparent 0.3mm 0.9mm);"
         bottom = max(2.0, PAGE_H - y1 + 3)
+        left = x0 + 3
+        if (p.shape or {}).get("kind") == "inset":  # a vignette's caption sits on the parchment just below the oval, not inside it
+            cw = min(max(w + 10, 40), 80)
+            left = max(2.0, min(PAGE_W - cw - 2, (x0 + x1) / 2 - cw / 2))
+            bottom = max(2.0, PAGE_H - y1 - 2 - 22)
         parts.append(
-            f"<div class='cap' style=\"left:{x0 + 3:.1f}mm;bottom:{bottom:.1f}mm;width:{cw:.1f}mm;background:{box};color:{text};"
+            f"<div class='cap' style=\"left:{left:.1f}mm;bottom:{bottom:.1f}mm;width:{cw:.1f}mm;background:{box};color:{text};"
             f"font-family:{fam};font-size:{size};{border}{extra}\">{_esc(cap)}</div>"
         )
     if bal:

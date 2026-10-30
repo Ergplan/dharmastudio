@@ -174,7 +174,12 @@ def key_to_alpha(png: bytes) -> bytes:
     """Auto-key an ink-on-white drawing to a transparent PNG (alpha = darkness, colour black)."""
     with Image.open(io.BytesIO(png)) as im:
         g = im.convert("L")
-        alpha = g.point(lambda v: 255 - v)
+        # paper (>= ~232) goes fully transparent; ink darkness is lifted with a gamma so pencil hatching stays visible
+        alpha = g.point(lambda v: 0 if v >= 232 else min(255, int(255 * ((232 - v) / 232) ** 0.55)))
+        from PIL import ImageFilter
+
+        # thicken fine pen lines by ~1 px at 1024 px so they survive downscaling to a 30-40 mm margin drawing
+        alpha = alpha.filter(ImageFilter.MaxFilter(3))
         out = Image.new("RGBA", im.size, (0, 0, 0, 0))
         out.putalpha(alpha)
     buf = io.BytesIO()
