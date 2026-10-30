@@ -780,16 +780,24 @@ def book_html(pages: list[str], title: str, opts: RenderOptions) -> str:
     return f"<!doctype html><html><head><meta charset='utf-8'><title>{_esc(title)}</title>{link}<style>\n{book_css(opts)}</style></head><body>{''.join(pages)}</body></html>"
 
 
-def render_pdf(html_text: str, out_pdf: Path) -> Path:
-    """Playwright/Chromium (executable fallback glob), else a system Chrome in headless print mode."""
+def render_pdf(html_text: str, out_pdf: Path, progress=None) -> Path:
+    """HTML -> PDF. Order: the studio's own PDF engine if already installed (the Mac app's normal path) ->
+    Playwright Chromium (source/dev) -> an installed Chrome/Chromium -> download the studio's PDF engine once.
+    DHARMA_PDF_ENGINE=shell forces the studio engine."""
     out_pdf.parent.mkdir(parents=True, exist_ok=True)
     html_path = out_pdf.with_suffix(".html")
     html_path.write_text(html_text, encoding="utf-8")
     import glob
     import os
     import shutil
-    import subprocess
 
+    from engine import pdf_engine
+
+    force_shell = os.environ.get("DHARMA_PDF_ENGINE") == "shell"
+    shell = pdf_engine.installed()
+    if shell or force_shell:
+        pdf_engine.print_to_pdf(shell or pdf_engine.ensure(progress), html_path, out_pdf)
+        return out_pdf
     exe = os.environ.get("PLAYWRIGHT_CHROMIUM") or next(iter(sorted(glob.glob("/opt/pw-browsers/chromium*/chrome-linux*/chrome") + glob.glob("/opt/pw-browsers/chromium*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium"))), None)
     try:
         from playwright.sync_api import sync_playwright
@@ -807,12 +815,15 @@ def render_pdf(html_text: str, out_pdf: Path) -> Path:
             pg.pdf(path=str(out_pdf), width=f"{PAGE_W + 2 * BLEED}mm", height=f"{PAGE_H + 2 * BLEED}mm", print_background=True, prefer_css_page_size=True)
             browser.close()
         return out_pdf
-    except Exception as exc:  # noqa: BLE001
-        for cand in (exe, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", shutil.which("chromium"), shutil.which("google-chrome"), shutil.which("chrome")):
+    except Exception:  # noqa: BLE001
+        for cand in (exe, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium",
+                     shutil.which("chromium"), shutil.which("google-chrome"), shutil.which("chrome")):
             if cand and Path(cand).exists():
-                subprocess.run([cand, "--headless", "--disable-gpu", "--no-sandbox", "--no-pdf-header-footer", f"--print-to-pdf={out_pdf}", html_path.resolve().as_uri()], check=True, timeout=300)
+                pdf_engine.print_to_pdf(Path(cand), html_path, out_pdf)
                 return out_pdf
-        raise RuntimeError(f"no PDF renderer available ({exc}); the HTML proof is at {html_path}")
+    # nothing installed: fetch the studio's own engine once, then use it from now on
+    pdf_engine.print_to_pdf(pdf_engine.ensure(progress), html_path, out_pdf)
+    return out_pdf
 
 
 def layout_manifest(page: PageView) -> dict[str, Any]:

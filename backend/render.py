@@ -292,7 +292,15 @@ def build_export(session: Session, pages: list[Page], lang: str, paper: str, ups
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     base = f"{name}-{lang}" + ("-print" if paper == "print" else "") + f"-{stamp}"
     pdf = out_dir / f"{base}.pdf"
-    L.render_pdf(L.book_html(htmls, f"The Cycle of Dharma · {base}", opts), pdf)
+    _last = {"pct": -1}
+
+    def _engine_progress(frac: float, msg: str) -> None:  # first export on a Mac without Chrome fetches the PDF engine
+        pct = int(frac * 10)
+        if pct != _last["pct"]:
+            _last["pct"] = pct
+            log(msg)
+
+    L.render_pdf(L.book_html(htmls, f"The Cycle of Dharma · {base}", opts), pdf, progress=_engine_progress)
     try:
         compress_pdf(pdf)
     except Exception as exc:  # noqa: BLE001

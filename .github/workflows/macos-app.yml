@@ -71,6 +71,7 @@ jobs:
           hdiutil detach mnt -quiet
           codesign --verify --deep "test-apps/Dharma Studio.app" && echo "signature ok"
           export HOME="$RUNNER_TEMP/home"
+          export DHARMA_PDF_ENGINE=shell   # behave like a Mac without Google Chrome: the app fetches its own PDF engine
           "test-apps/Dharma Studio.app/Contents/MacOS/Dharma Studio" --headless > app.log 2>&1 &
           for i in $(seq 1 120); do URL=$(grep -m1 '^http' app.log || true); [ -n "$URL" ] && break; sleep 2; done
           [ -n "$URL" ] || { tail -40 app.log; echo "app did not start"; exit 1; }
@@ -136,4 +137,4 @@ jobs:
             Install: open the .dmg, drag Dharma Studio to Applications.
             First launch: right-click Dharma Studio → Open (the app is not notarised), then Open again.
             Keys: Project → API keys → Set keys (saved in the macOS Keychain).
-            PDF export uses Google Chrome if installed.
+            PDF export: the first export downloads the studio's PDF engine once (about 90 MB); Google Chrome is not needed.
