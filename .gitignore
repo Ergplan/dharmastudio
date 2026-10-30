@@ -33,3 +33,6 @@ data/motion/
 data/site/
 web/node_modules/
 web/.next/
+
+# comic runs hold manuscript excerpts and generated art: never commit
+data/run*/
