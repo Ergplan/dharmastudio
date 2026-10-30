@@ -196,14 +196,12 @@ def cues(spec: FilmSpec) -> list[Cue]:
     t0, t1 = TITLE_S + 0.25, spec.total_s - END_S - 0.25
     out: list[Cue] = []
     if spec.word_times:
-        words = [w for w, _, _ in spec.word_times]
         k = 0
         for g in groups:
             n = len(" ".join(g).split())
             seg = spec.word_times[k:k + n] or spec.word_times[-1:]
             k += n
             out.append(Cue(TITLE_S + seg[0][1], TITLE_S + seg[-1][2] + 0.25, g))
-        del words
         for a, b in zip(out, out[1:]):
             a.end = min(max(a.end, b.start - 0.05), b.start)
     else:
