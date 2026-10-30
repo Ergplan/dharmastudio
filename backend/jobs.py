@@ -287,7 +287,7 @@ def h_export(ctx: Ctx, p: dict[str, Any]) -> dict[str, Any]:
     for lang in langs:
         ctx.check_stop()
         ctx.log(f"export {name} {lang} paper={p.get('paper', 'screen')} pages={[pg.number for pg in approved]}")
-        meta = render.build_export(ctx.session, approved, lang, p.get("paper", "screen"), bool(p.get("upscale")), name, ctx.log)
+        meta = render.build_export(ctx.session, approved, lang, p.get("paper", "screen"), bool(p.get("upscale")), name, ctx.log, print_texture=bool(p.get("print_texture")))
         ctx.add_cost(meta.get("cost_usd", 0.0))
         ctx.session.commit()
         ctx.log(f"pdf: {meta['pdf']}")

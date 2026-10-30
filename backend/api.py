@@ -25,7 +25,9 @@ from sqlalchemy.orm import Session
 from engine import agents, colour, llm, providers
 from engine import typography as T
 from engine.canvases import CANVASES
+from engine.comic import callouts as CO
 from engine.comic import layout as L
+from engine.comic import manuscript as MS
 from engine.comic.script import STATES
 from engine.settings import REPO_ROOT, settings
 
@@ -39,6 +41,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
     with db.session_scope() as s:
         render.ensure_canvases(s)
         render.ensure_typography(s)
+        render.ensure_devotional_silhouettes(s)
         jobs.sync_models(s)
     jobs.start_worker()
     yield
@@ -49,7 +52,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http
 
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 CANVAS_SPEC = {c["key"]: c for c in CANVASES}
-SUGGESTED = {1: ["parchment"], 2: ["iron"], 3: ["glass"]}
+SUGGESTED = {1: ["parchment_painted"], 2: ["iron"], 3: ["glass"]}
 
 
 def S() -> Any:  # noqa: N802
@@ -103,7 +106,7 @@ def j_panel(session: Session, p: Panel) -> dict[str, Any]:
     return {"id": p.id, "page_id": p.page_id, "n": p.n, "number": p.page.number * 100 + p.n, "kind": p.kind, "shape": p.shape, "image_group": p.image_group, "scene": p.scene, "scale": p.scale, "state": p.state,
             "beat": p.beat, "weight": p.weight, "characters": list(p.characters or []), "environment": p.environment, "source_page": p.source_page, "caption_en": p.caption_en or "", "caption_hi": p.caption_hi or "",
             "balloon_en": p.balloon_en or "", "balloon_hi": p.balloon_hi or "", "speaker": p.speaker or "", "hi_is_draft": p.hi_is_draft, "selected_candidate_id": p.selected_candidate_id,
-            "locked_shape": p.locked_shape, "sfx": p.sfx or "", "text_colours": p.text_colours or None, "unlocked": render.panel_gate(session, p), "candidates": [j_candidate(c) for c in p.candidates], "image_url": db.media_url(sel.path) if sel else None}
+            "locked_shape": p.locked_shape, "sfx": p.sfx or "", "text_colours": p.text_colours or None, "callout_shape": p.callout_shape or "auto", "balloon_shape": p.balloon_shape or "auto", "unlocked": render.panel_gate(session, p), "candidates": [j_candidate(c) for c in p.candidates], "image_url": db.media_url(sel.path) if sel else None}
 
 
 def j_page(session: Session, pg: Page) -> dict[str, Any]:
@@ -118,7 +121,7 @@ def j_page(session: Session, pg: Page) -> dict[str, Any]:
     return {"id": pg.id, "chapter_id": pg.chapter_id, "number": pg.number, "beat": pg.beat or look.beat, "beat_explicit": pg.beat, "status": pg.status,
             "canvas_override": override.key if override else None, "marginalia": pg.marginalia or [], "seed": pg.seed, "is_opener": pg.is_opener, "epigraph": pg.epigraph, "epigraph_hi": pg.epigraph_hi,
             "balance": render.balance(session, pg), "thumb": db.media_url(thumb.path) if thumb else None, "artifact": arts.get("en"), "artifacts": arts,
-            "gate": {"ok": not unlocked, "unlocked": unlocked}, "look": look.__dict__, "typography_override": pg.typography_override or None,
+            "gate": {"ok": not unlocked, "unlocked": unlocked}, "look": look.__dict__, "typography_override": pg.typography_override or None, "ink_dissolve": pg.ink_dissolve, "manuscript": pg.manuscript or None,
             "typography": render.page_typography(pg).summary(), "panels": [j_panel(session, p) for p in pg.panels]}
 
 
@@ -411,6 +414,49 @@ def get_font_file(name: str) -> Response:
     return FileResponse(path, media_type="font/ttf", headers={"Cache-Control": "public, max-age=31536000, immutable", "Access-Control-Allow-Origin": "*"})
 
 
+@app.get("/api/textures/{name}", include_in_schema=False)
+def get_texture(name: str) -> Response:
+    """The callout scrap textures, prepared for the page (640 px JPEG)."""
+    m = re.fullmatch(r"scrap_(light|warm|dark)\.jpg", name)
+    if not m:
+        raise HTTPException(404, "texture not found")
+    return Response(CO.scrap_bytes(m.group(1)), media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
+@app.get("/api/callouts")
+def get_callouts() -> dict[str, Any]:
+    kinds = [{"kind": k, "label": CO.LABELS[k], "note": CO.NOTES[k], "paper": CO.paper_for(k, "quiet"), "thumb_url": f"/api/callouts/thumb/{k}.svg"} for k in CO.KINDS]
+    balloons = [{"kind": k, "label": CO.LABELS[k], "note": CO.NOTES[k], "paper": "light", "thumb_url": f"/api/callouts/thumb/{k}.svg?paper=light"} for k in CO.BALLOON_KINDS]
+    return {"captions": kinds, "balloons": balloons, "auto_by_state": CO.AUTO_BY_STATE, "paper_by_state": CO.PAPER_BY_STATE}
+
+
+@app.get("/api/callouts/thumb/{name}", include_in_schema=False)
+def callout_thumb(name: str, paper: str | None = None, state: str = "quiet") -> Response:
+    kind = name.removesuffix(".svg")
+    if kind not in CO.KINDS + CO.BALLOON_KINDS:
+        raise HTTPException(404, "unknown shape")
+    st = "ego" if kind == "jagged_dark" and state == "quiet" else state
+    return Response(CO.thumbnail(kind, paper, st), media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/manuscript/verses")
+def get_verses() -> list[dict[str, Any]]:
+    return [{k: v.get(k) for k in ("id", "source", "lines", "iast", "meaning", "tags")} for v in MS.verses()]
+
+
+@app.get("/api/manuscript/figures")
+def get_figures() -> list[dict[str, Any]]:
+    return [{"id": f, "name": MS.FIGURE_NAMES.get(f, f), "tags": list(MS.FIGURE_TAGS.get(f, ())), "url": MS.FIGURE_URL.format(id=f), "aspect": round(MS.figure_aspect(f), 4)} for f in MS.figure_ids()]
+
+
+@app.get("/api/figures/{name}", include_in_schema=False)
+def get_figure(name: str) -> Response:
+    fid = name.removesuffix(".png")
+    if fid not in MS.figure_ids():
+        raise HTTPException(404, "figure not found")
+    return Response(MS.figure_png(fid), media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/api/canvases")
 def get_canvases(session: Session = S()) -> list[dict[str, Any]]:
     return [j_canvas(c) for c in session.scalars(select(Canvas).order_by(Canvas.id)).all()]
@@ -692,6 +738,8 @@ class PageIn(BaseModel):
     epigraph_hi: str | None = None
     seed: int | None = None
     typography_override: dict[str, Any] | None = None  # partial setting over the volume's; null or {} = reset to volume
+    ink_dissolve: bool | None = None  # null = auto
+    manuscript: dict[str, Any] | None = None  # {auto: false, verses: [...], figures: [...]}; null or {auto: true} = automatic
 
 
 @app.put("/api/pages/{pid}")
@@ -726,6 +774,19 @@ def put_page(pid: int, body: PageIn, session: Session = S()) -> Any:
         pg.epigraph_hi = body.epigraph_hi
     if body.seed is not None:
         pg.seed = body.seed
+    if "ink_dissolve" in fields:
+        pg.ink_dissolve = body.ink_dissolve
+    if "manuscript" in fields:
+        m = body.manuscript or {}
+        if not m or m.get("auto", True) is not False:
+            pg.manuscript = None
+        else:
+            vs = [v for v in (m.get("verses") or []) if isinstance(v, dict) and MS.verse(str(v.get("id")))]
+            fs = [f for f in (m.get("figures") or []) if isinstance(f, dict) and f.get("id") in MS.figure_ids()]
+            if len(vs) != len(m.get("verses") or []) or len(fs) != len(m.get("figures") or []):
+                raise HTTPException(400, "unknown verse or figure id")
+            keep = ("id", "x_mm", "y_mm", "w_mm", "rotation", "opacity", "font", "ruled")
+            pg.manuscript = {"auto": False, "verses": [{k: v[k] for k in keep if k in v} for v in vs], "figures": [{k: f[k] for k in keep if k in f} for f in fs]}
     if "typography_override" in fields:
         try:
             ov = T.validate(body.typography_override or {})
@@ -745,20 +806,20 @@ def put_page(pid: int, body: PageIn, session: Session = S()) -> Any:
             if pg.status == "approved":
                 pg.artifacts = {}
             pg.status = body.status
-    elif pg.status == "approved" and fields & {"canvas_override", "epigraph", "epigraph_hi", "typography_override"}:
+    elif pg.status == "approved" and fields & {"canvas_override", "epigraph", "epigraph_hi", "typography_override", "ink_dissolve", "manuscript"}:
         render.write_artifacts(session, pg)
     session.commit()
     return j_page(session, pg)
 
 
 @app.get("/api/pages/{pid}/render", response_class=HTMLResponse)
-def render_page(pid: int, lang: str = "en", paper: str = "screen", embed: bool = False, canvas: str | None = None, session: Session = S()) -> HTMLResponse:
+def render_page(pid: int, lang: str = "en", paper: str = "screen", embed: bool = False, canvas: str | None = None, print_texture: bool = False, session: Session = S()) -> HTMLResponse:
     pg = _page(session, pid)
     if lang not in ("en", "hi"):
         raise HTTPException(400, "lang must be en|hi")
     if paper not in ("screen", "print"):
         raise HTTPException(400, "paper must be screen|print")
-    html = render.page_document(session, pg, lang=lang, paper=paper, embed=embed, canvas_key=canvas or None)
+    html = render.page_document(session, pg, lang=lang, paper=paper, embed=embed, canvas_key=canvas or None, print_texture=print_texture)
     session.commit()
     return HTMLResponse(html)
 
@@ -766,6 +827,24 @@ def render_page(pid: int, lang: str = "en", paper: str = "screen", embed: bool =
 @app.get("/api/fonts.css", include_in_schema=False)
 def fonts_css() -> Response:
     return Response(L.font_css(), media_type="text/css", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/pages/{pid}/manuscript")
+def page_manuscript(pid: int, session: Session = S()) -> dict[str, Any]:
+    out = render.manuscript_state(session, _page(session, pid))
+    session.commit()
+    return out
+
+
+@app.post("/api/pages/{pid}/manuscript/auto")
+def page_manuscript_auto(pid: int, session: Session = S()) -> dict[str, Any]:
+    """Re-place automatically (drops the author's own placement)."""
+    pg = _page(session, pid)
+    pg.manuscript = None
+    if pg.status == "approved":
+        render.write_artifacts(session, pg)
+    session.commit()
+    return render.manuscript_state(session, pg)
 
 
 @app.get("/api/pages/{pid}/manifest")
@@ -848,10 +927,12 @@ class PanelIn(BaseModel):
     locked_shape: bool | None = None
     shape_kind: str | None = None  # convenience: a fresh polygon of this kind in the current bbox
     sfx: str | None = None
+    callout_shape: str | None = None  # auto | a callout kind
+    balloon_shape: str | None = None
     text_colours: dict[str, Any] | None = None  # {box, text, border} pins the callout colours; null or {"mode": "auto"} = auto
 
 
-TEXT_ONLY = {"caption_en", "caption_hi", "balloon_en", "balloon_hi", "speaker", "hi_is_draft", "sfx", "text_colours"}
+TEXT_ONLY = {"caption_en", "caption_hi", "balloon_en", "balloon_hi", "speaker", "hi_is_draft", "sfx", "text_colours", "callout_shape", "balloon_shape"}
 
 
 @app.put("/api/panels/{pid}")
@@ -878,6 +959,11 @@ def put_panel(pid: int, body: PanelIn, session: Session = S()) -> dict[str, Any]
         v = getattr(body, k)
         if k == "sfx":
             p.sfx = (v or "").strip()
+        elif k in ("callout_shape", "balloon_shape"):
+            allowed = CO.KINDS if k == "callout_shape" else CO.BALLOON_KINDS
+            if v not in (None, "", "auto") and v not in allowed:
+                raise HTTPException(400, f"{k} must be auto or one of {', '.join(allowed)}")
+            setattr(p, k, None if v in (None, "", "auto") else v)
         elif k in ("beat", "image_group", "environment", "speaker"):
             setattr(p, k, v or (None if k != "speaker" else None))
         elif v is not None:
@@ -1090,6 +1176,7 @@ class ExportIn(BaseModel):
     paper: str = "print"
     upscale: bool = False
     allow_partial: bool = False
+    print_texture: bool = False  # print mode: also print the paper texture (default off: the stock is the paper)
 
 
 def _export_scope(session: Session, body: ExportIn) -> tuple[list[Page], str]:
@@ -1128,7 +1215,7 @@ def post_export(body: ExportIn, session: Session = S()) -> Any:
     if unapproved and not body.allow_partial:
         return JSONResponse({"unapproved": unapproved, "detail": f"Unapproved pages: {', '.join(map(str, unapproved))}. Pass allow_partial to export the approved ones."}, status_code=409)
     label = f"Export {scope} · {'+'.join(x.upper() for x in langs)} · {body.paper}{' · Topaz' if body.upscale else ''}"
-    job = jobs.submit(session, "export", body.chapter_id or body.volume_id, {"chapter_id": body.chapter_id, "volume_id": body.volume_id, "lang": langs, "paper": body.paper, "upscale": body.upscale, "scope": scope, "label": label})
+    job = jobs.submit(session, "export", body.chapter_id or body.volume_id, {"chapter_id": body.chapter_id, "volume_id": body.volume_id, "lang": langs, "paper": body.paper, "upscale": body.upscale, "print_texture": body.print_texture, "scope": scope, "label": label})
     return job_resp(job, export=render.export_record(job))
 
 

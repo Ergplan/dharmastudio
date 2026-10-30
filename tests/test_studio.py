@@ -35,7 +35,7 @@ def test_project_and_journey(client):
     assert p["author"] == "Rachit Agarwal" and set(p["keys"]) == {"openai", "anthropic", "gemini", "topaz"}
     assert "Hanuman (hanuman/vanara)" in p["journey"]["chapter1_unlocked"]
     assert p["journey"]["step"] in ("manuscript", "models", "characters")
-    assert len(client.get("/api/canvases").json()) == 8
+    assert len(client.get("/api/canvases").json()) == 11
     m = client.get("/api/models").json()
     assert set(m["roles"]) == {"script_writer", "prompt_writer", "critic", "image"}
 
@@ -69,7 +69,7 @@ def test_render_html(client):
     pages = client.get("/api/pages?chapter_id=1").json()
     for pg in pages[:3]:
         html = client.get(f"/api/pages/{pg['id']}/render?lang=hi").text
-        assert html.count("<clipPath") == len(pg["panels"])
+        assert html.count("<clipPath id='c") == len(pg["panels"])  # one clip per shard (callouts carry their own)
         assert "हिंदी अनुवाद लंबित" in html  # the Devanagari fallback for untranslated captions
         assert "@font-face" in html and "/api/fonts/TiroDevanagariHindi-Regular.ttf" in html  # the volume's Hindi narration face
     en = client.get(f"/api/pages/{pages[0]['id']}/render?lang=en&embed=true").text

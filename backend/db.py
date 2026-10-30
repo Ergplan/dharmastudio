@@ -40,6 +40,10 @@ ADDED_COLUMNS = (
     ("page", "typography_override", "JSON"),
     ("panel", "sfx", "TEXT DEFAULT ''"),
     ("panel", "text_colours", "JSON"),
+    ("panel", "callout_shape", "VARCHAR(30)"),
+    ("panel", "balloon_shape", "VARCHAR(30)"),
+    ("page", "ink_dissolve", "BOOLEAN"),
+    ("page", "manuscript", "JSON"),
 )
 
 

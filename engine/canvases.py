@@ -4,6 +4,7 @@ edges), each under 1 MB, written to data/canvases/<key>.png at startup if missin
 from __future__ import annotations
 
 import random
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,20 @@ from PIL import Image, ImageDraw, ImageFilter
 SEPIA = "#3a2d1a"
 
 # key -> (name, base RGB, mottle RGB, fibre RGB, ink, gutter, caption_style, marginalia_style, notes)
+PAINTED = Path(__file__).resolve().parent / "textures"
+_PAINTED_CAPTION = {"text": SEPIA, "box": "rgba(239,228,201,0.55)", "border": "0.2mm solid " + SEPIA, "font": "serif", "textured": True}
+
 CANVASES: list[dict[str, Any]] = [
+    # painted parchment sheets (Sunburst): the page is the texture, scaled to the page; shards get a torn paper rim
+    {"key": "parchment_painted", "name": "Parchment (painted)", "painted": "page_warm.jpg", "finish": "painted", "base": (231, 196, 139),
+     "ink": SEPIA, "gutter": "paper", "caption_style": dict(_PAINTED_CAPTION, box_print="#ead2a4"), "marginalia_style": {"tint": SEPIA, "opacity": 0.85, "style": "pencil-sketch"},
+     "era_hint": "Volume 1 default: a painted parchment sheet with burnt, stained edges; torn paper rims on the shards; callouts are parchment scraps."},
+    {"key": "aged_vellum", "name": "Aged vellum", "painted": "page_aged.jpg", "finish": "painted", "base": (181, 124, 56),
+     "ink": "#2a1a10", "gutter": "paper", "caption_style": dict(_PAINTED_CAPTION, text="#2a1a10", box_print="#dcb98a"), "marginalia_style": {"tint": "#2a1a10", "opacity": 0.85, "style": "charcoal"},
+     "era_hint": "Darker, foxed vellum with heavy edge burn — Lanka, the war chapters."},
+    {"key": "pale_parchment", "name": "Pale parchment", "painted": "page_light.jpg", "finish": "painted", "base": (237, 222, 192),
+     "ink": SEPIA, "gutter": "paper", "caption_style": dict(_PAINTED_CAPTION, box_print="#efe2c4"), "marginalia_style": {"tint": SEPIA, "opacity": 0.8, "style": "pencil-sketch"},
+     "era_hint": "A pale, clean sheet — quiet chapters and interludes."},
     {"key": "parchment", "name": "Parchment", "base": (232, 214, 178), "mottle": (196, 166, 118), "fibre": (170, 140, 96), "edge": (120, 86, 48),
      "ink": SEPIA, "gutter": "paper", "caption_style": {"text": SEPIA, "box": "rgba(239,228,201,0.55)", "border": "0.2mm solid " + SEPIA, "font": "serif", "textured": True},
      "marginalia_style": {"tint": SEPIA, "opacity": 0.85, "style": "pencil-sketch"}, "era_hint": "Volume 1 default: warm, mottled, torn margins; the paper is the gutter, sepia ink edges."},
@@ -90,10 +104,17 @@ def paint_texture(spec: dict[str, Any], seed: int = 11) -> Image.Image:
 
 
 def ensure_textures(out_dir: Path) -> dict[str, Path]:
-    """Generate the eight textures if missing; return {key: path}."""
+    """Generate the procedural textures if missing and copy the painted sheets; return {key: path}."""
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: dict[str, Path] = {}
     for spec in CANVASES:
+        if spec.get("painted"):
+            src = PAINTED / spec["painted"]
+            p = out_dir / f"{spec['key']}.jpg"
+            if not p.exists() or p.stat().st_size != src.stat().st_size:
+                shutil.copyfile(src, p)
+            paths[spec["key"]] = p
+            continue
         p = out_dir / f"{spec['key']}.png"
         if not p.exists():
             im = paint_texture(spec)

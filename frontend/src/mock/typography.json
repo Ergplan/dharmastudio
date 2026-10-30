@@ -1102,7 +1102,13 @@
    "size": "L",
    "title_size": "L",
    "line_height": null,
-   "colour_mode": "smart"
+   "colour_mode": "smart",
+   "callout_shape": "auto",
+   "balloon_shape": "auto",
+   "manuscript_density": "light",
+   "manuscript_font": "tiro-devanagari-hindi",
+   "manuscript_opacity": 0.34,
+   "manuscript_rubric": true
   },
   "colour_modes": [
    "smart",

@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Any
 
 from engine import colour as C
+from engine.comic import callouts as CO
+from engine.comic import manuscript as MS
 from engine import typography as T
 
 from .visual_logic import PageLook, area_weight, beat_of, page_look, panel_colour
@@ -72,6 +74,8 @@ class PanelView:
     characters: list[str] = field(default_factory=list)
     sfx: str = ""  # lettered sound effect (drawn in the sfx font at the shard's top-left)
     text_colours: dict[str, Any] | None = None  # the panel's pinned callout colours {box, text, border}; None/auto = by mode
+    callout_shape: str | None = None  # auto (by state) or a callouts.KINDS kind
+    balloon_shape: str | None = None
 
     @property
     def polygon(self) -> list[Point]:
@@ -101,6 +105,7 @@ class CanvasView:
     gutter: str = "paper"  # "paper" = the paper itself is the gutter, else a colour
     caption_style: dict[str, Any] = field(default_factory=dict)  # {text, box, border, textured}
     marginalia_style: dict[str, Any] = field(default_factory=dict)  # {tint, opacity}
+    finish: str = ""  # "painted": a painted sheet; shards get a torn paper rim instead of an ink edge
 
     @property
     def paper_is_gutter(self) -> bool:
@@ -143,6 +148,9 @@ class PageView:
     marginalia: list[MarginaliaView] = field(default_factory=list)
     seed: int = 7
     typography: T.TypeSpec | None = None  # resolved fonts and sizes (volume setting + page override); None = default
+    ink_dissolve: bool | None = None  # art fading into hatching at the margin edge; None = auto (on for calm, torn pages)
+    manuscript: MS.Spec | None = None  # the verses-and-figures layer; None = off
+    manuscript_items: list = field(default_factory=list)  # filled by page_html: what the layer placed
 
     @property
     def type(self) -> T.TypeSpec:
@@ -156,6 +164,7 @@ class RenderOptions:
     lang: str = "en"
     paper: str = "screen"  # screen | print
     embed: bool = True  # data URIs (PDF, artifacts) vs served URLs (live UI)
+    print_texture: bool = False  # print mode: also print the paper texture (default: the stock is the paper)
 
     @property
     def print(self) -> bool:
@@ -474,7 +483,8 @@ def img_data(path: Path | None, jpeg_quality: int = 93) -> str:
 def png_data(path: Path | None) -> str:
     if not (path and path.exists()):
         return ""
-    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+    mime = "image/jpeg" if path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+    return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
 
 
 def _image_aspect(path: Path | None) -> float | None:
@@ -568,13 +578,13 @@ def _paper_hex(canvas: CanvasView) -> str:
     return cs.get("box_print") or ("#e8d6b2" if canvas.paper_is_gutter else "#efe4c9")
 
 
-def callout_colours(p: PanelView, kind: str, rect: tuple[float, float, float, float], canvas: CanvasView, ty: T.TypeSpec, img: ImageInfo | None) -> dict[str, Any]:
-    """{box, text, border, contrast, mode} for one callout, by the panel's pin, then the volume's colour mode."""
+def callout_colours(p: PanelView, kind: str, rect: tuple[float, float, float, float], canvas: CanvasView, ty: T.TypeSpec, img: ImageInfo | None,
+                    paper: str | None = None, tile: tuple[float, float, float, float] | None = None) -> dict[str, Any]:
+    """{box, text, border, contrast, mode, fill} for one callout, by the panel's pin, then the volume's colour mode.
+    Smart mode fills the shape with a parchment scrap (`paper`): the text colour is chosen against the texture's mean
+    colour under the text area (`tile`: x, y, w, h in tile mm), tinted toward the panel's palette (multiply <= 12 %)."""
     st = p.text_state if p.text_state in C.STATE_BOX else "quiet"
-    if kind == "balloon" and st not in ("ego",):
-        st_b = "quiet"
-    else:
-        st_b = st
+    st_b = "quiet" if kind == "balloon" and st != "ego" else st
     got = C.pinned(p.text_colours)
     if got:
         return {**got, "mode": "pinned"}
@@ -595,16 +605,50 @@ def callout_colours(p: PanelView, kind: str, rect: tuple[float, float, float, fl
         pal = C.palette(img.path, ((x0 - bx) / bw, (y0 - by) / bh, (x1 - bx) / bw, (y1 - by) / bh))
     ink = cs.get("text", canvas.ink if canvas.paper_is_gutter else "#161210")
     got = C.smart(pal, st_b, paper=_paper_hex(canvas), ink=ink, kind=kind)
-    return {**got, "mode": "smart"}
+    if paper is None or tile is None:
+        return {**got, "mode": "smart"}
+    # parchment: the texture's mean under the text, multiplied by a light tint of the panel's palette
+    mean = CO.mean_under(paper, *tile)
+    _, chroma, hue = C.lch(C.hex_to_rgb(got["box"]) if paper != "dark" else (pal[0][0] if pal else (120, 80, 40)))
+    tint = C.from_lch(78.0, min(max(chroma, 10.0), 30.0), hue)
+    a = 0.10
+    eff = tuple(int(round(m * (1 - a + a * t / 255))) for m, t in zip(mean, tint))
+    if paper == "dark":
+        seed = C.hex_to_rgb({"ego": "#e8b4a8", "knowledge": "#e9c25a"}.get(st_b, "#f2ede3"))
+    else:
+        seed = C.hex_to_rgb(ink if st_b != "voice" else C.STATE_TEXT["voice"])
+    text = C.ensure_contrast(seed, eff)  # type: ignore[arg-type]
+    return {"box": C.rgb_to_hex(eff), "text": C.rgb_to_hex(text), "border": got["border"], "contrast": round(C.contrast(text, eff), 2), "mode": "smart",  # type: ignore[arg-type]
+            "fill": {"paper": paper, "tint": C.rgb_to_hex(tint), "tint_alpha": a}}
 
 
-def _callout(cls: str, pos: str, w: float, h: float, path_d: str, col: dict[str, Any], font_css: str, size: float, lh: float, text: str, pad: tuple[float, float], opts: RenderOptions, sharp: bool = False) -> str:
-    m = 2.0  # room around the box for outward vertices and the balloon tail
-    svg = (f"<svg class='co' viewBox='{-m} {-m} {w + 2 * m:.2f} {h + 2 * m + 4.5:.2f}' style='left:{-m}mm;top:{-m}mm;width:{w + 2 * m:.2f}mm;height:{h + 2 * m + 4.5:.2f}mm'>"
-           f"<path d='{path_d}' fill='{col['box']}' stroke='{col['border']}' stroke-width='0.35' stroke-linejoin='round'/></svg>")
-    return (f"<div class='{cls}' data-bg='{col['box']}' data-fg='{col['text']}' data-contrast='{col['contrast']}' data-colour='{col['mode']}' "
-            f"style=\"{pos}width:{w:.2f}mm;height:{h:.2f}mm;padding:{pad[0]}mm {pad[1]}mm;color:{col['text']};{font_css}font-size:{size:.2f}mm;line-height:{lh:.2f}\">"
+def _callout(cls: str, x: float, y: float, sh: CO.Shape, col: dict[str, Any], font_css: str, size: float, lh: float, text: str, pad: tuple[float, float],
+             opts: RenderOptions, uid: str, tile: tuple[float, float]) -> str:
+    fill = dict(col.get("fill") or {})
+    paper = fill.get("paper")
+    if paper:
+        fill["use"] = f"sx{paper}"
+        fill["offset"] = tile
+    else:
+        fill = {"flat": col["box"]}
+    dark = paper == "dark" or _luma(col["box"]) < 0.35
+    fill["edge"] = "#9c7a4e" if dark else "#f4e9cf"
+    fill["burn"] = "#0b0603" if dark else "#4a2e14"
+    fill["burn_alpha"] = 0.6 if dark else 0.5
+    svg = CO.svg(sh, uid, fill, opts.print)
+    rot = f"transform:rotate({sh.rotation:.2f}deg);" if sh.rotation else ""
+    return (f"<div class='{cls}' data-shape='{sh.kind}' data-paper='{paper or 'flat'}' data-bg='{col['box']}' data-fg='{col['text']}' data-contrast='{col['contrast']}' data-colour='{col['mode']}' "
+            f"style=\"left:{x:.2f}mm;top:{y:.2f}mm;width:{sh.w:.2f}mm;height:{sh.h:.2f}mm;padding:{pad[0]}mm {pad[1]}mm;{rot}color:{col['text']};{font_css}font-size:{size:.2f}mm;line-height:{lh:.2f}\">"
             f"{svg}<span>{_esc(text)}</span></div>")
+
+
+def _place(x: float, y: float, sh: CO.Shape, top_pad: float = 2.0) -> tuple[float, float]:
+    """Keep the whole drawn scrap (overhang and rotation included) inside the trim with a small margin."""
+    L, T_, R, B = sh.overhang
+    grow = abs(math.sin(math.radians(sh.rotation))) * max(sh.w, sh.h) / 2
+    x = min(max(x, 1.5 + L + grow), PAGE_W - 1.5 - R - grow - sh.w)
+    y = min(max(y, top_pad + T_ + grow), PAGE_H - 1.5 - B - grow - sh.h)
+    return x, y
 
 
 def _sfx_html(p: PanelView, poly: list[Point], canvas: CanvasView, ty: T.TypeSpec) -> str:
@@ -643,7 +687,8 @@ def _measure(text: str, r: T.RoleFont, size: float, lh: float, w: float, pad: tu
     return len(lines) * size * lh + 2 * pad[0] + 0.6
 
 
-def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView, opts: RenderOptions, ty: T.TypeSpec | None = None, img: ImageInfo | None = None) -> str:
+def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView, opts: RenderOptions, ty: T.TypeSpec | None = None, img: ImageInfo | None = None,
+                  occupied: list | None = None, papers: set | None = None) -> str:
     ty = ty or T.resolve()
     cap = p.caption_hi if lang == "hi" else p.caption_en
     bal = p.balloon_hi if lang == "hi" else p.balloon_en
@@ -658,24 +703,27 @@ def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView
     max_w = PAGE_W - 4
     seed = p.number * 7919
     parts = []
+    inset = (p.shape or {}).get("kind") == "inset"
     if cap:
+        kind = CO.resolve_kind(p.callout_shape, ty.callout_shape, p.text_state, inset=inset)
+        pad = (1.8, 2.4) if kind == "oval_vignette" else ((3.2, 3.6) if kind == "cartouche" else CAP_PAD)
         r = ty.role("narration", lang)
         size = ty.caption_mm(lang)
-        natural = T.text_width(cap, r.face, size) + 2 * CAP_PAD[1] + 1
+        natural = T.text_width(cap, r.face, size) + 2 * pad[1] + 1
         cw = min(max(CAP_MIN_W, natural), max(CAP_MIN_W, 0.75 * w), max_w)
         # long text: widen (up to the shard, then the page) before letting the box grow tall over the art
-        while cw < min(max(w - 4, CAP_MIN_W), max_w) and _measure(cap, r, size, lh, cw, CAP_PAD) > max(22.0, (y1 - y0) * 0.45):
+        while cw < min(max(w - 4, CAP_MIN_W), max_w) and _measure(cap, r, size, lh, cw, pad) > max(22.0, (y1 - y0) * 0.45):
             cw = min(cw + 6, max(w - 4, CAP_MIN_W), max_w)
-        h = _measure(cap, r, size, lh, cw, CAP_PAD)
+        h = _measure(cap, r, size, lh, cw, pad)
         # art guard: a caption may cover at most ~33% of its shard; long narration steps its type down (to 0.7x)
         # rather than burying the picture
         shard_area = max(1.0, (x1 - x0) * (y1 - y0))
         steps = 0
         while cw * h > 0.33 * shard_area and steps < 4 and (p.shape or {}).get("kind") != "inset":
             size *= 0.92
-            natural = T.text_width(cap, r.face, size) + 2 * CAP_PAD[1] + 1
+            natural = T.text_width(cap, r.face, size) + 2 * pad[1] + 1
             cw = min(max(CAP_MIN_W, natural), max(CAP_MIN_W, 0.75 * w), max_w)
-            h = _measure(cap, r, size, lh, cw, CAP_PAD)
+            h = _measure(cap, r, size, lh, cw, pad)
             steps += 1
         left = max(2.0, min(x0 + 3, PAGE_W - 2 - cw))
         if (p.shape or {}).get("kind") == "inset":  # a vignette's caption sits on the parchment just below the oval
@@ -683,10 +731,17 @@ def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView
             top = max(2.0, min(y1 + 2.5, PAGE_H - 2.5 - h))
         else:
             top = max(2.0, min(y1 - 3 - h, PAGE_H - 2.5 - h))  # bottom-left of the shard, never off the trim
-        sharp = p.text_state in ("peak", "ego")
-        col = callout_colours(p, "caption", (left, top, left + cw, top + h), canvas, ty, img)
-        path = _rounded_path(callout_polygon(cw, h, seed, sharp), 1.0 if sharp else 1.6)
-        parts.append(_callout("cap", f"left:{left:.2f}mm;top:{top:.2f}mm;", cw, h, path, col, _font_css(r), size, lh, cap, CAP_PAD, opts, sharp))
+        sh = CO.build(kind, cw, h, seed, p.text_state)
+        left, top = _place(left, top, sh)
+        paper = CO.paper_for(kind, p.text_state)
+        ox, oy = CO.tile_offset(seed)
+        col = callout_colours(p, "caption", (left, top, left + cw, top + h), canvas, ty, img, paper, (ox + pad[1], oy + pad[0], cw - 2 * pad[1], h - 2 * pad[0]))
+        if col.get("fill") and papers is not None:
+            papers.add(paper)
+        if occupied is not None:
+            L_, T_, R_, B_ = sh.overhang
+            occupied.append((left - L_, top - T_, left + cw + R_, top + h + B_ + (4.5 if kind == "bubble" else 0)))
+        parts.append(_callout("cap", left, top, sh, col, _font_css(r), size, lh, cap, pad, opts, f"c{p.number}", (ox, oy)))
     if bal:
         r = ty.role("dialogue", lang)
         size = ty.balloon_mm(lang)
@@ -703,9 +758,18 @@ def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView
             steps += 1
         left = min(max(2.0, x1 - 3 - bw), PAGE_W - 2 - bw)
         top = max(2.0, min(y0 + 3, PAGE_H - 7 - bh))
-        col = callout_colours(p, "balloon", (left, top, left + bw, top + bh), canvas, ty, img)
-        path = balloon_path(bw, bh, bw * 0.22)
-        parts.append(_callout("bal", f"left:{left:.2f}mm;top:{top:.2f}mm;", bw, bh, path, col, _font_css(r), size, max(1.2, lh - 0.04), bal, BAL_PAD, opts))
+        bkind = CO.resolve_kind(p.balloon_shape, ty.balloon_shape, p.text_state, balloon=True)
+        sh = CO.build(bkind, bw, bh, seed + 1, p.text_state, tail_x=bw * 0.22)
+        left, top = _place(left, top, sh)
+        paper = "dark" if p.text_state == "ego" else "light"
+        ox, oy = CO.tile_offset(seed + 1)
+        col = callout_colours(p, "balloon", (left, top, left + bw, top + bh), canvas, ty, img, paper, (ox + BAL_PAD[1], oy + BAL_PAD[0], bw - 2 * BAL_PAD[1], bh - 2 * BAL_PAD[0]))
+        if col.get("fill") and papers is not None:
+            papers.add(paper)
+        if occupied is not None:
+            L_, T_, R_, B_ = sh.overhang
+            occupied.append((left - L_, top - T_, left + bw + R_, top + bh + B_))
+        parts.append(_callout("bal", left, top, sh, col, _font_css(r), size, max(1.2, lh - 0.04), bal, BAL_PAD, opts, f"b{p.number}", (ox, oy)))
     parts.append(_sfx_html(p, poly, canvas, ty))
     return "".join(parts)
 
@@ -724,6 +788,10 @@ def used_fonts(page: PageView, lang: str) -> list[T.RoleFont]:
     for p in page.panels:
         if (p.sfx or "").strip():
             out.append(ty.sfx(p.sfx))
+    for f in {it.font for it in page.manuscript_items if it.kind == "verse"}:  # call after page_html
+        font = T.FONTS.get(f)
+        if font:
+            out.append(T.RoleFont(font, 400))
     return out
 
 
@@ -849,7 +917,12 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
     paper_gutter = canvas.paper_is_gutter
     ink = canvas.ink
     pid = page.number
-    clips, imgs, caps, veins = [], [], [], []
+    clips, imgs, caps, veins, fibres, hatch = [], [], [], [], [], []
+    occupied: list = []
+    papers: set = set()
+    painted = canvas.finish == "painted"
+    look_beat = look.beat
+    dissolve = painted and (page.ink_dissolve if page.ink_dissolve is not None else look_beat == "calm")
     polys = {p.number: p.polygon for p in panels}
     for p in panels:
         poly = polys[p.number]
@@ -867,8 +940,27 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
         )
         # the clipPath is always emitted (the editor and the manifest read it); feathered shards mask with a blurred copy
         clips.append(f"<clipPath id='c{uid}' clipPathUnits='userSpaceOnUse'><polygon points='{pts}'/></clipPath>")
+        rim = painted and p.kind != "plate" and p.shape.get("kind") not in ("bleed", "inset", "hex")
         if feather:
             clips.append(f"<mask id='m{uid}' maskUnits='userSpaceOnUse'><polygon points='{pts}' fill='white' filter='url(#blur{pid})'/></mask>")
+        elif rim:
+            dz = _dissolve_side(poly) if dissolve else None
+            grad = ""
+            fillm = "white"
+            if dz:
+                (gx1, gy1), (gx2, gy2) = dz
+                grad = (f"<linearGradient id='dg{uid}' gradientUnits='userSpaceOnUse' x1='{gx1:.2f}' y1='{gy1:.2f}' x2='{gx2:.2f}' y2='{gy2:.2f}'>"
+                        "<stop offset='0' stop-color='#262626'/><stop offset='0.55' stop-color='#bdbdbd'/><stop offset='1' stop-color='white'/></linearGradient>"
+                        f"<linearGradient id='hg{uid}' gradientUnits='userSpaceOnUse' x1='{gx1:.2f}' y1='{gy1:.2f}' x2='{gx2:.2f}' y2='{gy2:.2f}'>"
+                        "<stop offset='0' stop-color='white'/><stop offset='0.7' stop-color='#3a3a3a'/><stop offset='1' stop-color='black'/></linearGradient>"
+                        f"<mask id='hm{uid}' maskUnits='userSpaceOnUse'><rect x='{-BLEED}' y='{-BLEED}' width='{PAGE_W + 2 * BLEED}' height='{PAGE_H + 2 * BLEED}' fill='url(#hg{uid})'/></mask>")
+                fillm = f"url(#dg{uid})"
+            clips.append(f"{grad}<mask id='m{uid}' maskUnits='userSpaceOnUse' x='{-BLEED}' y='{-BLEED}' width='{PAGE_W + 2 * BLEED}' height='{PAGE_H + 2 * BLEED}'>"
+                         f"<polygon points='{pts}' fill='{fillm}' filter='url(#torn{pid})'/></mask>")
+            fibres.append(f"<polygon points='{pts}' fill='none' stroke='#f3e6c6' stroke-opacity='0.9' stroke-width='1.25' stroke-linejoin='round' filter='url(#torn{pid})'/>")
+            if dz:
+                hatch.append(f"<g mask='url(#hm{uid})' clip-path='url(#c{uid})' opacity='0.8'><rect x='{-BLEED}' y='{-BLEED}' width='{PAGE_W + 2 * BLEED}' height='{PAGE_H + 2 * BLEED}' fill='url(#hatch{pid})'/></g>")
+            feather = True  # cut through the mask
         bbox = _bbox(poly)
         img_path = p.image_path
         if p.image_group:  # revelation: one illustration breaking across several shards
@@ -898,7 +990,7 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
             imgs.append(f"<g {cut}><polygon points='{pts}' fill='{fill}'/><text x='{(bbox[0] + bbox[2]) / 2:.1f}' y='{(bbox[1] + bbox[3]) / 2:.1f}' fill='{txt}' font-size='3' text-anchor='middle'>panel {p.n} · no take yet</text></g>")
         # edges: sepia ink edge on paper canvases (never black), gold rim on hex, ink rim on insets, crimson veins on ego pages
         if p.kind != "plate" and p.shape.get("kind") != "bleed":
-            if paper_gutter:
+            if paper_gutter and not rim:
                 veins.append(f"<polygon points='{pts}' fill='none' stroke='{ink}' stroke-opacity='0.85' stroke-width='0.3' stroke-linejoin='round'/>")
             if look.crimson_veins:
                 veins.append(f"<polygon points='{pts}' fill='none' stroke='#b3261e' stroke-opacity='0.55' stroke-width='0.25'/>")
@@ -907,8 +999,16 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
         if p.edge == "rim" and p.shape.get("kind") == "hex":
             veins.append(f"<polygon points='{pts}' fill='none' stroke='#f2c45a' stroke-opacity='0.35' stroke-width='1.2' filter='url(#blur{pid})'/>"
                          f"<polygon points='{pts}' fill='none' stroke='#ffd977' stroke-opacity='0.9' stroke-width='0.35'/>")
-        caps.append(_caption_html(p, lang, poly, canvas, opts, ty, info))
+        caps.append(_caption_html(p, lang, poly, canvas, opts, ty, info, occupied, papers))
     blur = f"<filter id='blur{pid}' x='-5%' y='-5%' width='110%' height='110%'><feGaussianBlur stdDeviation='0.45'/></filter>"
+    if painted:  # torn paper: the shard edge displaced by fibrous noise, then softened (a 0.8-1.5 mm dissolve)
+        blur += (f"<filter id='torn{pid}' filterUnits='userSpaceOnUse' x='{-BLEED}' y='{-BLEED}' width='{PAGE_W + 2 * BLEED}' height='{PAGE_H + 2 * BLEED}'>"
+                 f"<feTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='3' seed='{page.seed % 97}' result='n'/>"
+                 "<feDisplacementMap in='SourceGraphic' in2='n' scale='2.2' xChannelSelector='R' yChannelSelector='G' result='d'/>"
+                 "<feGaussianBlur in='d' stdDeviation='0.38'/></filter>"
+                 f"<pattern id='hatch{pid}' patternUnits='userSpaceOnUse' width='0.95' height='0.95' patternTransform='rotate(38)'>"
+                 f"<line x1='0' y1='0' x2='0' y2='0.95' stroke='{ink}' stroke-width='0.17' stroke-opacity='0.85'/></pattern>")
+    ms_svg = _manuscript(page, panels, polys, occupied, opts, single_plate)
     # background: paper canvases show the paper (texture for screen, nothing for print); others fill the gutter colour
     if single_plate:
         bg = ""
@@ -920,20 +1020,71 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
     svg = (
         f"<svg xmlns='http://www.w3.org/2000/svg' width='{PAGE_W + 2 * BLEED}mm' height='{PAGE_H + 2 * BLEED}mm' "
         f"viewBox='{-BLEED} {-BLEED} {PAGE_W + 2 * BLEED} {PAGE_H + 2 * BLEED}'><defs>{blur}{''.join(clips)}</defs>"
-        f"{bg}{_marginalia_svg(page.marginalia, canvas, opts)}{''.join(imgs)}{''.join(veins)}{_crop_marks() if pr else ''}</svg>"
+        f"{bg}{ms_svg}{_marginalia_svg(page.marginalia, canvas, opts)}{''.join(fibres)}{''.join(imgs)}{''.join(hatch)}{''.join(veins)}{_crop_marks() if pr else ''}</svg>"
     )
     folio_col = ink if paper_gutter else "#8a8580"
     folio = f"<div class='folio' style=\"color:{folio_col};{_font_css(ty.role('narration', lang))}font-size:{2.4 * ty.size:.2f}mm\">{page.number}</div>"
     title = _title_block_html(page.title, lang, canvas, opts, ty) if (page.is_opener and page.title) else ""
     texture = ""
-    if not pr and canvas.paper_texture is not None and canvas.paper_texture.exists():
+    show_paper = not pr or opts.print_texture
+    if show_paper and canvas.paper_texture is not None and canvas.paper_texture.exists():
         tsrc = png_data(canvas.paper_texture) if (opts.embed or not canvas.texture_url) else canvas.texture_url
-        texture = f"background-image:url({tsrc});background-size:cover;"
+        texture = f"background-image:url({tsrc});background-size:100% 100%;"
     elif not pr and not paper_gutter:
         texture = f"background:{canvas.gutter};"
     elif not pr:
         texture = "background:#efe4c9;"
-    return f"<section class='page' data-page='{page.number}' style=\"{texture}\">{svg}<div class='overlay'>{title}{''.join(caps)}{folio}</div></section>"
+    defs = CO.scrap_defs(papers, opts.embed)
+    return f"<section class='page' data-page='{page.number}' style=\"{texture}\">{svg}<div class='overlay'>{defs}{title}{''.join(caps)}{folio}</div></section>"
+
+
+def _dissolve_side(poly: list[Point]) -> tuple[Point, Point] | None:
+    """The gradient (outer point -> 16 mm inward) on the shard side nearest the page edge, for the ink dissolve."""
+    x0, y0, x1, y1 = _bbox(poly)
+    x0, y0, x1, y1 = max(x0, 0.0), max(y0, 0.0), min(x1, PAGE_W), min(y1, PAGE_H)
+    sides = {"l": x0, "r": PAGE_W - x1, "t": y0, "b": PAGE_H - y1}
+    side = min(sides, key=sides.get)
+    if sides[side] > 30:
+        return None
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    depth = min(16.0, 0.35 * ((x1 - x0) if side in "lr" else (y1 - y0)))
+    return {"l": ((x0, cy), (x0 + depth, cy)), "r": ((x1, cy), (x1 - depth, cy)), "t": ((cx, y0), (cx, y0 + depth)), "b": ((cx, y1), (cx, y1 - depth))}[side]
+
+
+def _manuscript(page: PageView, panels: list[PanelView], polys: dict[int, list[Point]], occupied: list, opts: RenderOptions, single_plate: bool) -> str:
+    """Place (or take the author's placement of) the verses and figures in the free parchment; store them on the page."""
+    spec = page.manuscript
+    page.manuscript_items = []
+    if spec is None or single_plate:
+        return ""
+    if spec.auto:
+        nv, nf = MS.DENSITY.get(spec.density, (0, 0))
+        if not (nv or nf):
+            return ""
+        grid = MS.Grid(PAGE_W, PAGE_H)
+        for p in panels:
+            if p.kind == "plate" or (p.shape or {}).get("kind") == "bleed":
+                return ""
+            grid.polygon(clip_to_rect(polys[p.number], 0, 0, PAGE_W, PAGE_H))
+        for r in occupied:
+            grid.rect(r)
+        if page.is_opener and page.title:  # only the centred title text, so the parchment either side stays free
+            tr = page.type.role("title", "en")
+            t = page.title
+            spacing = {"book": 0.3, "vol": 0.22, "chap": 0.04}  # the title block's letter-spacing (em)
+            widest = max(T.text_width(x, tr.face, page.type.title_mm(k)) + len(x) * spacing[k] * page.type.title_mm(k)
+                         for k, x in (("book", t.book_title.upper()), ("vol", t.volume_title.upper()), ("chap", t.chapter_title)) if x)
+            half = min(PAGE_W / 2 - MARGIN - 4, widest / 2 + 3)
+            grid.rect((PAGE_W / 2 - half, MARGIN, PAGE_W / 2 + half, OPENER_TOP - 3))
+        for m in page.marginalia:
+            grid.rect((m.x_mm, m.y_mm, m.x_mm + m.w_mm, m.y_mm + (m.h_mm or m.w_mm)))
+        grid.rect((PAGE_W - 12, PAGE_H - 8, PAGE_W, PAGE_H), 0)  # the folio
+        vs, fs = MS.choose(spec.tags | {"any"}, page.seed * 1000 + page.number)
+        items = MS.place(grid, vs, fs, page.seed * 1000 + page.number, spec.font, spec.opacity, nv, nf)
+    else:
+        items = MS.from_stored(spec.stored, spec.font, spec.opacity)
+    page.manuscript_items = items
+    return MS.layer_svg(items, opts.embed, spec.rubric)
 
 
 def _crop_marks() -> str:

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from engine import typography as T
 from engine.canvases import CANVASES, ensure_textures
+from engine.comic import manuscript as MS
 from engine.comic import layout as L
 from engine.comic.enhance import upscale
 from engine.comic.proof import compress_pdf
@@ -50,7 +51,9 @@ def ensure_canvases(session: Session) -> None:
 def canvas_view(c: Canvas | None) -> L.CanvasView:
     if c is None:
         return L.CanvasView()
-    return L.CanvasView(key=c.key, name=c.name, paper_texture=db.abs_path(c.paper_texture), texture_url=db.media_url(c.paper_texture), ink=c.ink, gutter=c.gutter, caption_style=c.caption_style or {}, marginalia_style=c.marginalia_style or {})
+    spec = next((x for x in CANVASES if x["key"] == c.key), {})
+    return L.CanvasView(key=c.key, name=c.name, paper_texture=db.abs_path(c.paper_texture), texture_url=db.media_url(c.paper_texture), ink=c.ink, gutter=c.gutter,
+                        caption_style=c.caption_style or {}, marginalia_style=c.marginalia_style or {}, finish=spec.get("finish", ""))
 
 
 def canvas_by_key(session: Session, key: str | None) -> Canvas | None:
@@ -98,7 +101,7 @@ def panel_view(session: Session, panel: Panel, prefer_enhanced: bool = False) ->
         text_state=panel.state, scale=panel.scale, beat=panel.beat, weight=panel.weight or 1.0,
         caption_en=panel.caption_en or "", caption_hi=panel.caption_hi or "", balloon_en=panel.balloon_en or "", balloon_hi=panel.balloon_hi or "",
         speaker=panel.speaker, image_path=path, image_url=url, characters=list(panel.characters or []),
-        sfx=panel.sfx or "", text_colours=panel.text_colours or None,
+        sfx=panel.sfx or "", text_colours=panel.text_colours or None, callout_shape=panel.callout_shape, balloon_shape=panel.balloon_shape,
     )
 
 
@@ -130,10 +133,87 @@ def volume_typography(vol: Volume | None) -> dict[str, Any]:
 
 
 def ensure_typography(session: Session) -> None:
-    """Volume 1 starts on the default type (Illuminated manuscript, size L) when it has none stored yet."""
+    """Volume 1 starts on the default type (Illuminated manuscript, size L) when it has none stored yet, and moves once
+    from the procedural Parchment to the painted parchment (the new default; the author can switch back on Canvas)."""
+    from .models import Project
+
+    painted = canvas_by_key(session, "parchment_painted")
+    old = canvas_by_key(session, "parchment")
     for v in session.scalars(select(Volume).where(Volume.number == 1)).all():
         if not v.typography:
             v.typography = dict(T.DEFAULT_SETTING)
+        proj = session.get(Project, v.project_id)
+        flags = dict((proj.settings or {}) if proj else {})
+        if painted and not flags.get("painted_default_applied"):
+            if v.canvas_id in (None, old.id if old else None):
+                v.canvas_id = painted.id
+            flags["painted_default_applied"] = True
+            if proj:
+                proj.settings = flags
+
+
+DEVOTIONAL = "Devotional"
+
+
+def ensure_devotional_silhouettes(session: Session) -> int:
+    """The manuscript layer's figures also live in the Silhouettes library (tag "Devotional"), keyed and inked."""
+    from .models import Project
+
+    proj = session.scalar(select(Project))
+    if proj is None:
+        return 0
+    have = {s.path for s in session.scalars(select(Silhouette)).all()}
+    d = db.DATA_DIR / "silhouettes"
+    d.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for fid in MS.figure_ids():
+        dst = d / f"devotional_{fid}.png"
+        if not dst.exists():
+            dst.write_bytes(MS.figure_png(fid))
+        rel = db.rel(dst)
+        if rel not in have:
+            tags = [DEVOTIONAL, MS.FIGURE_NAMES.get(fid, fid)] + [t for t in MS.FIGURE_TAGS.get(fid, ()) if t != "any"][:3]
+            session.add(Silhouette(project_id=proj.id, path=rel, tags=tags, source="uploaded", prompt=f"devotional figure: {fid}"))
+            n += 1
+    return n
+
+
+def page_tags(page: Page) -> set[str]:
+    """What chooses a page's verses and figures: its cast (panels + the book's chapter cast), states, beat, era, opener."""
+    tags: set[str] = set()
+    for p in page.panels:
+        for k in p.characters or []:
+            tags.add(k.split("/")[0].lower())
+        if p.state:
+            tags.add(p.state)
+        if p.beat:
+            tags.add(p.beat)
+    if page.beat:
+        tags.add(page.beat)
+    ch = page.chapter
+    vol = ch.volume
+    if vol.era_default:
+        tags.add(vol.era_default.lower())
+    if page.is_opener:
+        tags |= {"opener", "dharma"}
+    try:
+        from . import book_seed
+
+        for e in book_seed.entry_for_chapter(ch):
+            for c in e.get("cast") or []:
+                tags.add(str(c.get("name", "")).split()[0].lower())
+            for sset in e.get("scene_settings") or []:
+                if sset.get("era"):
+                    tags.add(str(sset["era"]).lower())
+    except Exception:  # noqa: BLE001 - the book is optional (not in the public repo)
+        pass
+    return {t for t in tags if t}
+
+
+def manuscript_spec(page: Page, ty: T.TypeSpec) -> MS.Spec:
+    m = ty.manuscript or {}
+    return MS.Spec(density=m.get("density", "light"), font=m.get("font", "tiro-devanagari-hindi"), opacity=float(m.get("opacity", 0.34)), rubric=bool(m.get("rubric", True)),
+                   stored=dict(page.manuscript or {}), tags=page_tags(page))
 
 
 def page_typography(page: Page) -> T.TypeSpec:
@@ -141,8 +221,9 @@ def page_typography(page: Page) -> T.TypeSpec:
 
 
 def page_view(session: Session, page: Page, prefer_enhanced: bool = False) -> L.PageView:
+    ty = page_typography(page)
     return L.PageView(number=page.number, panels=[panel_view(session, p, prefer_enhanced) for p in page.panels], beat=page.beat, is_opener=page.is_opener, title=title_block(page) if page.is_opener else None,
-                      marginalia=marginalia_views(session, page), seed=page.seed or 7, typography=page_typography(page))
+                      marginalia=marginalia_views(session, page), seed=page.seed or 7, typography=ty, ink_dissolve=page.ink_dissolve, manuscript=manuscript_spec(page, ty))
 
 
 # ---------------------------------------------------------------------------------
@@ -219,22 +300,37 @@ def page_gate(session: Session, page: Page) -> list[str]:
 # ---------------------------------------------------------------------------------
 
 
-def page_html(session: Session, page: Page, lang: str = "en", paper: str = "screen", embed: bool = False, prefer_enhanced: bool = False, canvas_key: str | None = None, faces: set | None = None) -> str:
-    """One page's <section>. Adds the faces it uses to `faces` (for the document's @font-face rules)."""
+def page_html(session: Session, page: Page, lang: str = "en", paper: str = "screen", embed: bool = False, prefer_enhanced: bool = False, canvas_key: str | None = None,
+              faces: set | None = None, print_texture: bool = False, items: list | None = None) -> str:
+    """One page's <section>. Adds the faces it uses to `faces` (for the document's @font-face rules) and the manuscript
+    layer's placements to `items`."""
     ensure_shapes(session, page)
-    opts = L.RenderOptions(lang=lang, paper=paper, embed=embed)
+    opts = L.RenderOptions(lang=lang, paper=paper, embed=embed, print_texture=print_texture)
     cv = canvas_view(canvas_for_page(session, page, canvas_key))
     view = page_view(session, page, prefer_enhanced)
+    out = L.page_html(view, cv, opts)
     if faces is not None:
         faces |= T.faces_of(L.used_fonts(view, lang))
-    return L.page_html(view, cv, opts)
+    if items is not None:
+        items.extend(view.manuscript_items)
+    return out
 
 
-def page_document(session: Session, page: Page, lang: str = "en", paper: str = "screen", embed: bool = False, prefer_enhanced: bool = False, canvas_key: str | None = None) -> str:
+def manuscript_state(session: Session, page: Page) -> dict[str, Any]:
+    """The layer as placed (auto or by hand), for the Pages screen's outlines."""
+    items: list = []
+    page_html(session, page, items=items)
+    ty = page_typography(page)
+    return {"auto": (page.manuscript or {}).get("auto", True) is not False, "density": ty.manuscript.get("density"), "font": ty.manuscript.get("font"),
+            "verses": [i.json() for i in items if i.kind == "verse"], "figures": [i.json() for i in items if i.kind == "figure"], "tags": sorted(page_tags(page))}
+
+
+def page_document(session: Session, page: Page, lang: str = "en", paper: str = "screen", embed: bool = False, prefer_enhanced: bool = False, canvas_key: str | None = None,
+                  print_texture: bool = False) -> str:
     """A standalone HTML document for one page (the live render and the stored artifact)."""
-    opts = L.RenderOptions(lang=lang, paper=paper, embed=embed)
+    opts = L.RenderOptions(lang=lang, paper=paper, embed=embed, print_texture=print_texture)
     faces: set = set()
-    body = page_html(session, page, lang, paper, embed, prefer_enhanced, canvas_key, faces)
+    body = page_html(session, page, lang, paper, embed, prefer_enhanced, canvas_key, faces, print_texture)
     return L.book_html([body], f"{page.chapter.volume.project.title} · p{page.number} · {lang}", opts, faces)
 
 
@@ -291,7 +387,7 @@ def export_name(session: Session, chapter_id: int | None, volume_id: int | None)
     return f"vol{vol.number}" if vol else "export"
 
 
-def build_export(session: Session, pages: list[Page], lang: str, paper: str, upscale_images: bool, name: str, log=print) -> dict[str, Any]:  # noqa: ANN001
+def build_export(session: Session, pages: list[Page], lang: str, paper: str, upscale_images: bool, name: str, log=print, print_texture: bool = False) -> dict[str, Any]:  # noqa: ANN001
     """Assemble approved pages in order into a PDF (EN or HI), optional Topaz upscale of the selected images,
     compress. Returns {pdf, html, pages, cost_usd}."""
     out_dir = db.DATA_DIR / "exports"
@@ -311,9 +407,9 @@ def build_export(session: Session, pages: list[Page], lang: str, paper: str, ups
                     r = upscale(src, dst)
                     cost += float(r.get("cost_usd") or 0.0)
                     log(f"upscale p{pg.number}.{p.n}: {r['tool']} x{r['factor']}")
-    opts = L.RenderOptions(lang=lang, paper=paper, embed=True)
+    opts = L.RenderOptions(lang=lang, paper=paper, embed=True, print_texture=print_texture)
     faces: set = set()
-    htmls = [page_html(session, pg, lang=lang, paper=paper, embed=True, prefer_enhanced=upscale_images, faces=faces) for pg in pages]
+    htmls = [page_html(session, pg, lang=lang, paper=paper, embed=True, prefer_enhanced=upscale_images, faces=faces, print_texture=print_texture) for pg in pages]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     base = f"{name}-{lang}" + ("-print" if paper == "print" else "") + f"-{stamp}"
     pdf = out_dir / f"{base}.pdf"

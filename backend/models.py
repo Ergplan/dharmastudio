@@ -122,6 +122,8 @@ class Page(Base):
     epigraph_hi: Mapped[str] = mapped_column(Text, default="")
     artifacts: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # {"en": path, "hi": path} written on approve
     typography_override: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # partial setting over the volume's
+    ink_dissolve: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # None = auto (on for calm pages on painted canvases)
+    manuscript: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # {auto, verses[], figures[]}; None = auto
 
     chapter: Mapped[Chapter] = relationship(back_populates="pages")
     panels: Mapped[list["Panel"]] = relationship(back_populates="page", order_by="Panel.n", cascade="all, delete-orphan")
@@ -153,6 +155,8 @@ class Panel(Base):
     locked_shape: Mapped[bool] = mapped_column(Boolean, default=False)
     sfx: Mapped[str | None] = mapped_column(Text, nullable=True, default="")  # lettered sound effect; empty = none
     text_colours: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # pinned callout colours; None = auto
+    callout_shape: Mapped[str | None] = mapped_column(String(30), nullable=True)  # auto | engine.comic.callouts kind
+    balloon_shape: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
     page: Mapped[Page] = relationship(back_populates="panels")
     candidates: Mapped[list["Candidate"]] = relationship(back_populates="panel", order_by="Candidate.id", cascade="all, delete-orphan")

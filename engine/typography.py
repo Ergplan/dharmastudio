@@ -166,8 +166,15 @@ PRESETS: dict[str, dict[str, Any]] = {
     },
 }
 DEFAULT_PRESET = "illuminated-manuscript"
-DEFAULT_SETTING: dict[str, Any] = {"preset": DEFAULT_PRESET, "size": "L", "title_size": "L", "line_height": None, "colour_mode": "smart"}
-SETTING_KEYS = ("preset", *FONT_KEYS, "size", "title_size", "line_height", "colour_mode", "colours")
+DEFAULT_SETTING: dict[str, Any] = {"preset": DEFAULT_PRESET, "size": "L", "title_size": "L", "line_height": None, "colour_mode": "smart",
+                                   "callout_shape": "auto", "balloon_shape": "auto", "manuscript_density": "light", "manuscript_font": "tiro-devanagari-hindi",
+                                   "manuscript_opacity": 0.34, "manuscript_rubric": True}
+SETTING_KEYS = ("preset", *FONT_KEYS, "size", "title_size", "line_height", "colour_mode", "colours", "callout_shape", "balloon_shape",
+                "manuscript_density", "manuscript_font", "manuscript_opacity", "manuscript_rubric")
+CALLOUT_SHAPES = ("auto", "torn_scrap", "deckle_rect", "scroll", "cartouche", "jagged_dark", "oval_vignette", "folded_corner", "rounded_shard")
+BALLOON_SHAPES = ("auto", "bubble", "deckle_rect", "torn_scrap", "rounded_shard", "scroll", "cartouche")
+DENSITIES = ("off", "light", "rich")
+MANUSCRIPT_FONTS = ("tiro-devanagari-hindi", "amita", "martel", "eczar")
 COLOUR_MODES = ("smart", "state", "custom")
 STATES = ("quiet", "rising", "peak", "ego", "knowledge", "voice")
 
@@ -204,6 +211,27 @@ def validate(setting: dict[str, Any] | None, partial: bool = False) -> dict[str,
         elif k in ("size", "title_size"):
             if v not in SIZES:
                 raise TypographyError(f"{k} must be one of {', '.join(SIZES)}")
+        elif k == "callout_shape":
+            if v not in CALLOUT_SHAPES:
+                raise TypographyError(f"callout_shape must be one of {', '.join(CALLOUT_SHAPES)}")
+        elif k == "balloon_shape":
+            if v not in BALLOON_SHAPES:
+                raise TypographyError(f"balloon_shape must be one of {', '.join(BALLOON_SHAPES)}")
+        elif k == "manuscript_density":
+            if v not in DENSITIES:
+                raise TypographyError(f"manuscript_density must be one of {', '.join(DENSITIES)}")
+        elif k == "manuscript_font":
+            if v not in MANUSCRIPT_FONTS:
+                raise TypographyError(f"manuscript_font must be one of {', '.join(MANUSCRIPT_FONTS)}")
+        elif k == "manuscript_opacity":
+            try:
+                v = float(v)
+            except (TypeError, ValueError) as exc:
+                raise TypographyError("manuscript_opacity must be a number") from exc
+            if not 0.2 <= v <= 0.5:
+                raise TypographyError("manuscript_opacity must be between 0.2 and 0.5")
+        elif k == "manuscript_rubric":
+            v = bool(v)
         elif k == "colour_mode":
             if v not in COLOUR_MODES:
                 raise TypographyError(f"colour_mode must be one of {', '.join(COLOUR_MODES)}")
@@ -272,6 +300,9 @@ class TypeSpec:
     line_height: float = LINE_HEIGHT
     colour_mode: str = "smart"
     colours: dict[str, Any] = field(default_factory=dict)
+    callout_shape: str = "auto"
+    balloon_shape: str = "auto"
+    manuscript: dict[str, Any] = field(default_factory=dict)  # {density, font, opacity, rubric}
 
     def font(self, role: str, lang: str) -> Font:
         key = (HI_KEYS.get(role) if lang == "hi" else None) or EN_KEYS[role]
@@ -303,7 +334,8 @@ class TypeSpec:
 
     def summary(self) -> dict[str, Any]:
         return {"preset": self.setting.get("preset"), "size": self.setting.get("size"), "title_size": self.setting.get("title_size"), "line_height": self.line_height,
-                "colour_mode": self.colour_mode, "colours": self.colours,
+                "colour_mode": self.colour_mode, "colours": self.colours, "callout_shape": self.callout_shape, "balloon_shape": self.balloon_shape,
+                "manuscript": self.manuscript,
                 "fonts": {k: {"id": f.id, "family": f.family} for k, f in self.fonts.items()}, "scale": {"size": self.size, "title_size": self.title_size}}
 
 
@@ -319,7 +351,10 @@ def resolve(volume: dict[str, Any] | None = None, override: dict[str, Any] | Non
         fonts[k] = f
     lh = eff.get("line_height")
     return TypeSpec(setting=eff, fonts=fonts, size=SIZES.get(eff.get("size") or "L", 1.2), title_size=SIZES.get(eff.get("title_size") or eff.get("size") or "L", 1.2),
-                    line_height=float(lh) if lh else LINE_HEIGHT, colour_mode=eff.get("colour_mode") or "smart", colours=eff.get("colours") or {})
+                    line_height=float(lh) if lh else LINE_HEIGHT, colour_mode=eff.get("colour_mode") or "smart", colours=eff.get("colours") or {},
+                    callout_shape=eff.get("callout_shape") or "auto", balloon_shape=eff.get("balloon_shape") or "auto",
+                    manuscript={"density": eff.get("manuscript_density") or "light", "font": eff.get("manuscript_font") or "tiro-devanagari-hindi",
+                                "opacity": float(eff.get("manuscript_opacity") or 0.34), "rubric": eff.get("manuscript_rubric", True) is not False})
 
 
 # ---------------------------------------------------------------------------------

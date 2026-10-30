@@ -102,7 +102,7 @@ def test_migration_adds_columns_without_dropping(tmp_path):
     old = db.engine
     try:
         db.engine = create_engine(f"sqlite:///{path}")
-        assert set(db.migrate()) == {"volume.typography", "page.typography_override", "panel.sfx", "panel.text_colours"}
+        assert set(db.migrate()) == {f"{t}.{c}" for t, c, _ in db.ADDED_COLUMNS}
         assert db.migrate() == []
     finally:
         db.engine.dispose()
@@ -172,8 +172,9 @@ def test_callouts_are_rounded_shards(client):
     assert caps
     for cap in caps:
         d = re.search(r"<path d='([^']+)'", cap).group(1)
-        assert d.startswith("M") and d.count("Q") >= 5 and d.endswith("Z")  # 5-7 vertices, each rounded
-        assert "stroke-width='0.35'" in cap
+        # parchment callouts (engine/comic/callouts.py): a closed scrap / scroll outline with a torn, many-vertex edge
+        assert d.startswith("M") and d.endswith("Z") and d.count("L") + d.count("Q") + d.count("C") >= 5
+        assert "data-shape=" in cap
         w = float(re.search(r"width:([0-9.]+)mm;height", cap).group(1))
         assert w >= 46
     assert "drop-shadow" in html
@@ -187,7 +188,7 @@ def test_smart_contrast_chapter1(client):
     for pid in range(1, 6):
         for lang in ("en", "hi"):
             html = client.get(f"/api/pages/{pid}/render?lang={lang}").text
-            for bg, fg, mode in re.findall(r"class='(?:cap|bal)' data-bg='(#[0-9a-f]{6})' data-fg='(#[0-9a-f]{6})' data-contrast='[0-9.]+' data-colour='(\w+)'", html):
+            for bg, fg, mode in re.findall(r"class='(?:cap|bal)'[^>]*? data-bg='(#[0-9a-f]{6})' data-fg='(#[0-9a-f]{6})' data-contrast='[0-9.]+' data-colour='(\w+)'", html):
                 assert mode == "smart"
                 assert C.contrast(bg, fg) >= 7.0, (pid, lang, bg, fg)
                 n += 1

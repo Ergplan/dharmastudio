@@ -20,7 +20,7 @@ from .models import Candidate, Canvas, Chapter, Character, CharacterRef, Page, P
 ENGINE = REPO_ROOT / "engine"
 PICKS = {101: 1, 102: 0, 103: 0, 104: 1, 201: 0, 202: 1, 203: 1, 204: 0, 205: 1, 301: 0, 401: 0, 402: 1, 403: 1, 501: 1, 502: 0, 503: 1, 504: 1,
          601: 0, 602: 1, 603: 1, 604: 0, 701: 1, 702: 1, 703: 0, 801: 0, 802: 1, 803: 0, 901: 0, 1001: 0, 1002: 0, 1003: 0, 1004: 1}
-VOLUMES = [(1, "The Fire That Was Not Destroyed", "parchment", "treta"), (2, "Book Two", "iron", "dwapara"), (3, "Book Three", "glass", "phala")]
+VOLUMES = [(1, "The Fire That Was Not Destroyed", "parchment_painted", "treta"), (2, "Book Two", "iron", "dwapara"), (3, "Book Three", "glass", "phala")]
 
 
 def seed_project(session: Session) -> Project:
