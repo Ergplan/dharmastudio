@@ -124,6 +124,10 @@ def marginalia_views(session: Session, page: Page) -> list[L.MarginaliaView]:
         if s is None:
             continue
         out.append(L.MarginaliaView(path=db.abs_path(s.path), url=db.media_url(s.path), x_mm=float(m.get("x_mm", 0)), y_mm=float(m.get("y_mm", 0)), w_mm=float(m.get("w_mm", 30)), h_mm=m.get("h_mm"), rotation=float(m.get("rotation", 0)), opacity=float(m.get("opacity", 0.85)), tint=m.get("tint")))
+    from .qr_api import page_elements  # QR page elements (backend/qr_api.py): printed like marginalia, full ink
+
+    for e in page_elements(session, page.id):
+        out.append(L.MarginaliaView(path=e["path"], url=e["url"], x_mm=e["x_mm"], y_mm=e["y_mm"], w_mm=e["w_mm"], h_mm=e["h_mm"], rotation=0.0, opacity=1.0, tint=e["colour"]))
     return out
 
 

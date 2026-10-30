@@ -32,6 +32,7 @@ from engine.comic.script import STATES
 from engine.settings import REPO_ROOT, settings
 
 from . import db, gen, jobs, manuscript, render
+from . import links as links_api, motion_api, qr_api  # Motion, QR, Links, Seedance, Site routers
 from .models import Candidate, Canvas, Chapter, Character, CharacterRef, Job, Ledger, Page, Panel, Project, Silhouette, Volume
 
 
@@ -125,7 +126,8 @@ def j_page(session: Session, pg: Page) -> dict[str, Any]:
             "typography": render.page_typography(pg).summary(), "panels": [j_panel(session, p) for p in pg.panels]}
 
 
-JOB_LABELS = {"panel": "Panel", "page": "Page", "refs": "References", "silhouettes": "Silhouettes", "prefill": "Prefill", "hindi": "Hindi drafts", "propose": "Propose cast", "export": "Export", "batch": "Director", "manuscript": "Manuscript"}
+JOB_LABELS = {"panel": "Panel", "page": "Page", "refs": "References", "silhouettes": "Silhouettes", "prefill": "Prefill", "hindi": "Hindi drafts", "propose": "Propose cast", "export": "Export", "batch": "Director", "manuscript": "Manuscript",
+              "motion_render": "Moment film", "seedance": "Seedance take", "site_publish": "Site"}
 
 
 def j_job(j: Job) -> dict[str, Any]:
@@ -1380,14 +1382,16 @@ def app_update_apply() -> dict:
 
 
 # --- keys (desktop app: macOS Keychain; source checkout: .env) -------------------------------------------
-_KEY_FIELDS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "topaz": "TOPAZ_API_KEY"}
+_KEY_FIELDS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "topaz": "TOPAZ_API_KEY",
+               "fal": "FAL_KEY", "byteplus": "BYTEPLUS_API_KEY", "elevenlabs": "ELEVENLABS_API_KEY", "blob": "BLOB_READ_WRITE_TOKEN", "revalidate": "REVALIDATE_SECRET"}
+_KEY_ATTRS = {"blob": "blob_read_write_token", "revalidate": "revalidate_secret"}  # settings attribute when it is not {short}_api_key
 
 
 @app.get("/api/settings/keys")
 def get_keys() -> dict:
     import os
 
-    return {"keys": settings.key_status(), "store": ("keychain" if os.environ.get("DHARMA_USE_KEYCHAIN") == "1" else "private file") if os.environ.get("DHARMA_DESKTOP") else ".env"}
+    return {"keys": {**settings.key_status(), **settings.motion_key_status()}, "store": ("keychain" if os.environ.get("DHARMA_USE_KEYCHAIN") == "1" else "private file") if os.environ.get("DHARMA_DESKTOP") else ".env"}
 
 
 @app.put("/api/settings/keys")
@@ -1432,13 +1436,20 @@ def put_keys(body: dict) -> dict:
             if val:
                 lines.append(f"{env_name}={val}")
             env_path.write_text("\n".join(lines) + "\n")
-        setattr(settings, short + "_api_key", val)
+        setattr(settings, _KEY_ATTRS.get(short, short + "_api_key"), val)
         if val:
             os.environ[env_name] = val
         else:
             os.environ.pop(env_name, None)
-    return {"keys": settings.key_status(), "store": ("keychain" if os.environ.get("DHARMA_USE_KEYCHAIN") == "1" else "private file") if desktop else ".env"}
+    return {"keys": {**settings.key_status(), **settings.motion_key_status()}, "store": ("keychain" if os.environ.get("DHARMA_USE_KEYCHAIN") == "1" else "private file") if desktop else ".env"}
 
+
+for _router in (links_api.router, qr_api.router, motion_api.router):  # before /media and the SPA catch-all
+    app.include_router(_router)
+
+from . import director_api  # noqa: E402  — the Art Director router (also registers its worker jobs)
+
+app.include_router(director_api.router)  # before /media and the SPA catch-all
 
 app.mount("/media", StaticFiles(directory=str(db.DATA_DIR)), name="media")
 

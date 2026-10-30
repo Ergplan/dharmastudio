@@ -292,6 +292,13 @@ def h_export(ctx: Ctx, p: dict[str, Any]) -> dict[str, Any]:
         ctx.session.commit()
         ctx.log(f"pdf: {meta['pdf']}")
         outs.append(meta)
+    if p.get("paper") == "print":  # printed QR codes: their short links are locked for ever
+        from . import links
+
+        locked = links.lock_for_pages(ctx.session, [pg.id for pg in approved])
+        ctx.session.commit()
+        if locked:
+            ctx.log(f"print-locked links: {', '.join(locked)}")
     return {"exports": outs, "pdf": outs[0]["pdf"] if outs else None, "url": db.media_url(outs[0]["pdf"]) if outs else None}
 
 

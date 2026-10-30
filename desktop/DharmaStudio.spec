@@ -7,11 +7,12 @@ from PyInstaller.utils.hooks import collect_all, collect_submodules
 ROOT = Path(os.getcwd())
 
 datas, binaries, hidden = [], [], []
-for pkg in ("webview", "uvicorn", "keyring", "anthropic", "openai", "pikepdf", "pypdf"):
+for pkg in ("webview", "uvicorn", "keyring", "anthropic", "openai", "pikepdf", "pypdf",
+            "imageio_ffmpeg", "segno", "zxingcpp", "uharfbuzz"):  # motion: static ffmpeg binary, QR encode/decode, text shaping
     d, b, h = collect_all(pkg)
     datas += d; binaries += b; hidden += h
 hidden += collect_submodules("backend") + collect_submodules("engine")
-hidden += ["keyring.backends.macOS", "yaml", "multipart", "python_multipart"]
+hidden += ["keyring.backends.macOS", "yaml", "multipart", "python_multipart", "numpy", "brotli", "fontTools.ttLib", "fontTools.ttLib.woff2"]
 
 
 def tree(src, dest, exts=None, skip=("__pycache__",)):
@@ -29,6 +30,7 @@ def tree(src, dest, exts=None, skip=("__pycache__",)):
 # non-Python files the engine and the UI need, at the same relative paths as in the repo
 datas += tree("engine", "engine", exts={".md", ".yaml", ".yml", ".png", ".jpg", ".ttf", ".otf", ".txt", ".json", ".css", ".pdf"})
 datas += tree("frontend/dist", "frontend/dist")
+datas.append((str(ROOT / "web" / "lib" / "manifest.schema.json"), "web/lib"))  # the site manifest contract
 if (ROOT / "desktop" / "build_info.json").exists():
     datas.append((str(ROOT / "desktop" / "build_info.json"), "desktop"))
 

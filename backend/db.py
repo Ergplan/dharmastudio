@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from engine.settings import settings
 
+from . import motion_models  # noqa: F401  (Motion / QR / Links tables on the same Base)
 from .models import Base
+from . import director_models  # noqa: E402,F401  — Art Director tables (created additively by create_all)
 
 DATA_DIR: Path = Path(os.environ.get("DHARMA_DATA_DIR") or settings.resolve_data_dir()).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
