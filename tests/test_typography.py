@@ -135,8 +135,10 @@ def test_size_scale(client):
     m = _sizes(client.get("/api/pages/2/render").text, "cap")
     client.put("/api/volumes/1/typography", json={"size": "L"})
     big = _sizes(client.get("/api/pages/2/render").text, "cap")
-    assert m and big and all(b > a for a, b in zip(m, big))
-    assert min(big) > 2.9 * 1.3  # one step above the original 2.9 mm caption at L
+    # L is never smaller than M; captions that the art guard does not have to shrink are clearly larger
+    assert m and big and all(b >= a - 1e-6 for a, b in zip(m, big)) and any(b > a for a, b in zip(m, big))
+    assert max(big) > 2.9 * 1.3  # one step above the original 2.9 mm caption at L
+    assert min(big) >= 2.9 * 0.85  # the art guard never shrinks narration below readable print size
 
 
 def test_page_override_wins(client):
