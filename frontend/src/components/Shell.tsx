@@ -59,7 +59,7 @@ export function Rail() {
         <NavLink key={n.to} to={n.to} className={({ isActive }) => cx('relative flex flex-col items-center gap-1 py-2.5 text-2xs text-ink-400 hover:text-ink-100 hover:bg-ink-850', isActive && 'text-gold-300 bg-ink-850 before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:bg-gold-400')}>
           <n.icon size={18} strokeWidth={1.75} />
           <span className="flex items-center gap-1">{n.label}<StatusDot tone={st[n.key]?.tone ?? 'idle'} title={st[n.key]?.title} pulse={st[n.key]?.tone === 'busy'} /></span>
-          <span className="absolute top-1 right-2 text-[0.58rem] text-ink-600 font-mono">{i + 1}</span>
+          <span className="absolute top-1 right-2 text-[0.58rem] text-ink-600 font-mono">{(i + 1) % 10}</span>
         </NavLink>
       ))}
       <div className="mt-auto px-2 pb-1 text-[0.58rem] text-ink-600 text-center leading-tight">{MOCK ? 'MOCK MODE' : 'localhost:8787'}</div>

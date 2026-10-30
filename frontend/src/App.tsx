@@ -15,11 +15,11 @@ import MotionScreen from './screens/Motion'
 
 export default function App() {
   const nav = useNavigate()
-  // Global navigation shortcuts: Alt+1..8 switch screens (plain digits are reserved for panel selection on Pages).
+  // Global navigation shortcuts: Alt+1..9 and Alt+0 switch screens (plain digits are reserved for panel selection on Pages).
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (!e.altKey || e.ctrlKey || e.metaKey) return
-      const i = Number(e.key) - 1
+      const i = e.key === '0' ? 9 : Number(e.key) - 1  // Alt+0 is the tenth screen
       const routes = ['/project', '/characters', '/canvas', '/typography', '/script', '/pages', '/director', '/silhouettes', '/export', '/motion']
       if (i >= 0 && i < routes.length) { e.preventDefault(); nav(routes[i]) }
     }
