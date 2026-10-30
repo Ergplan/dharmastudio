@@ -4,7 +4,7 @@
 
 :root { color-scheme: dark; }
 html, body, #root { height: 100%; }
-body { @apply bg-ink-950 text-ink-200 font-ui text-[13px] antialiased; overscroll-behavior: none; }
+body { @apply bg-ink-950 text-ink-200 font-ui text-[0.8125rem] antialiased; overscroll-behavior: none; }
 * { scrollbar-width: thin; scrollbar-color: #3a3a43 transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-thumb { background: #3a3a43; border-radius: 4px; }

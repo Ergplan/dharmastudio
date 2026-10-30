@@ -19,7 +19,7 @@ export default function CharactersScreen() {
   if (isLoading) return <Spinner />
   return (
     <div className="h-full flex">
-      <div className="w-[380px] shrink-0 border-r border-ink-800 flex flex-col min-h-0">
+      <div className="w-[23.75rem] shrink-0 border-r border-ink-800 flex flex-col min-h-0">
         {unlocked.length > 0 ? (
           <div className="m-3 mb-0 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 flex gap-2"><ShieldAlert size={14} className="shrink-0 mt-0.5" /><div><b>Lock before generating:</b> {unlocked.map(c => c.name).join(', ')}. A page naming an unlocked character cannot generate.</div></div>
         ) : (
@@ -73,21 +73,21 @@ function CharacterDetail({ c }: { c: Character }) {
           <div className="font-mono text-2xs text-ink-500">form <span className="text-ink-300">{c.form_key}</span> · id {c.id}</div>
         </div>
         <div className="ml-auto flex items-center gap-3">
-          <div className="text-right text-2xs text-ink-500 max-w-[220px]">{c.locked ? 'Locked: the look paragraph and the primary reference ride on every generation.' : canLock ? 'Ready to lock.' : 'Lock needs an approved primary reference.'}</div>
+          <div className="text-right text-2xs text-ink-500 max-w-[13.75rem]">{c.locked ? 'Locked: the look paragraph and the primary reference ride on every generation.' : canLock ? 'Ready to lock.' : 'Lock needs an approved primary reference.'}</div>
           <button
-            className={cx('relative h-8 w-[108px] rounded-full border transition-colors flex items-center px-1', c.locked ? 'bg-emerald-500/25 border-emerald-400/60' : 'bg-ink-800 border-ink-600', !c.locked && !canLock && 'opacity-50 cursor-not-allowed')}
+            className={cx('relative h-8 w-[6.75rem] rounded-full border transition-colors flex items-center px-1', c.locked ? 'bg-emerald-500/25 border-emerald-400/60' : 'bg-ink-800 border-ink-600', !c.locked && !canLock && 'opacity-50 cursor-not-allowed')}
             disabled={!c.locked && !canLock}
             title={c.locked ? 'Unlock' : canLock ? 'Lock' : 'Approve a primary reference first'}
             onClick={() => save.mutate({ id: c.id, locked: !c.locked })}
           >
-            <span className={cx('absolute top-0.5 h-6 w-6 rounded-full grid place-items-center transition-all', c.locked ? 'left-[78px] bg-emerald-300 text-ink-950' : 'left-0.5 bg-ink-500 text-ink-100')}>{c.locked ? <Lock size={12} /> : <Unlock size={12} />}</span>
+            <span className={cx('absolute top-0.5 h-6 w-6 rounded-full grid place-items-center transition-all', c.locked ? 'left-[5rem] bg-emerald-300 text-ink-950' : 'left-0.5 bg-ink-500 text-ink-100')}>{c.locked ? <Lock size={12} /> : <Unlock size={12} />}</span>
             <span className={cx('text-2xs font-medium uppercase tracking-wide w-full', c.locked ? 'text-left pl-2 text-emerald-200' : 'text-right pr-2 text-ink-300')}>{c.locked ? 'Locked' : 'Unlocked'}</span>
           </button>
         </div>
       </div>
 
       <Field label="Look paragraph" hint={<span className="normal-case tracking-normal text-ink-500">saved on blur · carried verbatim into every prompt of this character</span>}>
-        <textarea className="textarea min-h-[120px] text-[13px]" value={look} onChange={(e) => setLook(e.target.value)} onBlur={() => look !== c.look && save.mutate({ id: c.id, look })} />
+        <textarea className="textarea min-h-[120px] text-[0.8125rem]" value={look} onChange={(e) => setLook(e.target.value)} onBlur={() => look !== c.look && save.mutate({ id: c.id, look })} />
       </Field>
 
       <section>

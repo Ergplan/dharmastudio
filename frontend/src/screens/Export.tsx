@@ -28,7 +28,7 @@ export default function ExportScreen() {
   const topazMissing = upscale && project && !project.keys.topaz
   return (
     <div className="h-full flex">
-      <div className="w-[420px] shrink-0 border-r border-ink-800 flex flex-col min-h-0 overflow-auto">
+      <div className="w-[26.25rem] shrink-0 border-r border-ink-800 flex flex-col min-h-0 overflow-auto">
         <div className="panel-h">Export <span className="text-ink-500 font-normal">— 170×260 mm + 3 mm bleed, crop marks, 300 ppi</span></div>
         <div className="p-4 flex flex-col gap-4">
           <div>

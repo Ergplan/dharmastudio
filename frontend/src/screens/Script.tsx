@@ -29,7 +29,7 @@ export default function ScriptScreen() {
           <span className="text-ink-500 font-normal font-mono text-2xs">pp. {chapter?.pages_from}–{chapter?.pages_to}</span>
         </div>
         <div className="flex-1 overflow-auto px-6 py-5 bg-ink-900/40">
-          {chapter ? <pre className="whitespace-pre-wrap font-book text-[13.5px] leading-[1.7] text-ink-200 max-w-[62ch]">{chapter.text || <span className="text-ink-500 italic">No text for this chapter.</span>}</pre> : <Spinner />}
+          {chapter ? <pre className="whitespace-pre-wrap font-book text-[0.84rem] leading-[1.7] text-ink-200 max-w-[62ch]">{chapter.text || <span className="text-ink-500 italic">No text for this chapter.</span>}</pre> : <Spinner />}
         </div>
       </div>
       <div className="flex-1 min-w-0 flex flex-col min-h-0">

@@ -27,7 +27,7 @@ export default function CanvasScreen() {
           <VolumeRow key={v.id} v={v} canvases={canvases} active={v.id === vol?.id} onFocus={() => { setVolId(v.id); setPreviewKey(null) }} onPreview={(k) => { setVolId(v.id); setPreviewKey(k) }} onPick={(c) => { setVolId(v.id); setPreviewKey(null); save.mutate({ id: v.id, canvas_id: c.id }) }} />
         ))}
       </div>
-      <div className="w-[440px] shrink-0 border-l border-ink-800 flex flex-col min-h-0">
+      <div className="w-[27.5rem] shrink-0 border-l border-ink-800 flex flex-col min-h-0">
         <div className="panel-h justify-between"><span>Preview — {vol?.title.split('—')[0].trim()}</span><span className="text-ink-500 font-normal">{canvases.find(c => c.key === previewCanvas)?.name}{previewKey && previewKey !== chosen?.key ? ' (hover)' : ''}</span></div>
         <div className="flex-1 min-h-0 bg-ink-950 p-3">
           {firstChapter ? <Preview chapterId={firstChapter.id} canvasKey={previewCanvas} /> : <div className="h-full grid place-items-center text-xs text-ink-500">No chapter in this volume yet.</div>}

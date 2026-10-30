@@ -23,7 +23,7 @@ export default function SilhouettesScreen() {
   const toggle = (t: string) => setFilter(f => f.includes(t) ? f.filter(x => x !== t) : [...f, t])
   return (
     <div className="h-full flex">
-      <div className="w-[340px] shrink-0 border-r border-ink-800 flex flex-col min-h-0">
+      <div className="w-[21.25rem] shrink-0 border-r border-ink-800 flex flex-col min-h-0">
         <div className="panel-h">Generate <span className="text-ink-500 font-normal">— Sunburst, ink on white, no colour, auto-keyed to PNG</span></div>
         <div className="p-3 flex flex-col gap-3">
           <Field label="Tags (comma-separated)"><input className="input" placeholder="bow, rama, weapon" value={tags} onChange={(e) => setTags(e.target.value)} /></Field>

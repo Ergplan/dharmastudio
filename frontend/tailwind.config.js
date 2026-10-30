@@ -15,7 +15,7 @@ export default {
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
         book: ['Georgia', '"Noto Serif Devanagari"', 'serif'],
       },
-      fontSize: { '2xs': ['10.5px', '14px'] },
+      fontSize: { '2xs': ['0.656rem', '0.875rem'] },
     },
   },
   plugins: [],
