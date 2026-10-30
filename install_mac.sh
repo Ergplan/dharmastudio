@@ -5,6 +5,18 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# pip's macOS "truststore" crashes when Python cannot read the macOS version (platform.mac_ver() == ''),
+# which kills ensurepip and every pip install. Use pip's classic certificate handling instead.
+export PIP_USE_DEPRECATED=legacy-certs
+export SYSTEM_VERSION_COMPAT=0
+
+# If uv is installed (brew install uv) it builds the venv without pip at all - the most robust path.
+if command -v uv >/dev/null 2>&1 && [ ! -x .venv/bin/python ]; then
+  echo "== venv (uv)"
+  uv venv --python 3.13 .venv || uv venv .venv
+  uv pip install --python .venv/bin/python pip
+fi
+
 # Pick a Python that can build a working venv. Prefer 3.13/3.12 (Homebrew's 3.14 can fail at ensurepip).
 make_venv() {
   local py="$1"
