@@ -52,7 +52,7 @@ app = BUNDLE(
         "CFBundleShortVersionString": "1.0.0",
         "CFBundleDisplayName": "Dharma Studio",
         "NSHighResolutionCapable": True,
-        "LSMinimumSystemVersion": "13.0",
+        "LSMinimumSystemVersion": "14.0",
         "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
     },
 )

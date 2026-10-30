@@ -80,7 +80,7 @@ jobs:
           make_latest: true
           files: DharmaStudio.dmg
           body: |
-            Built from ${{ github.sha }}. Apple Silicon Macs (M1 and later), macOS 13+.
+            Built from ${{ github.sha }}. Apple Silicon Macs (M1 and later), macOS 14 (Sonoma) or later.
             Install: open the .dmg, drag Dharma Studio to Applications.
             First launch: right-click Dharma Studio → Open (the app is not notarised), then Open again.
             Keys: Project → API keys → Set keys (saved in the macOS Keychain).
