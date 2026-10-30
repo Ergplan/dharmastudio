@@ -10,7 +10,8 @@ data/exports/
 data/artifacts/
 data/enhanced/
 data/manuscript/
-data/covers/  # Art Director covers: painted art, the author's uploaded current cover, typeset exports (never committed)
+# Art Director covers: painted art, the author's uploaded current cover, typeset exports (never committed)
+data/covers/
 data/canvases/
 frontend/node_modules/
 frontend/dist/
