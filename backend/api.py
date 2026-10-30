@@ -280,6 +280,24 @@ async def upload_manuscript(file: UploadFile = File(...), volume_id: int | None 
     name = re.sub(r"[^A-Za-z0-9._-]+", "_", file.filename or "manuscript.pdf")
     dst = d / name
     dst.write_bytes(await file.read())
+    # A book with a contents table (The Cycle of Dharma): split it on this Mac into all three volumes, no model run.
+    if dst.suffix.lower() == ".pdf":
+        try:
+            from backend import book_seed
+
+            res = book_seed.import_manuscript(dst, session)
+            chapters_all = session.scalars(select(Chapter).order_by(Chapter.volume_id, Chapter.number)).all()
+            out = [j_chapter(c, brief=True) for c in chapters_all]
+            log = (f"received {name} ({dst.stat().st_size // 1024} KB)\nread the contents table: {res['entries']} parts, {res['words']} words\n"
+                   f"loaded {len(out)} chapters across the three books ({res['created']} new, {res['updated']} updated)\ndone\n")
+            job = Job(kind="manuscript", ref_id=proj.id, status="done", log=log, params={"label": f"Manuscript · {name}", "file": name},
+                      result={"chapters": out, "book": res}, progress={"done": 1, "total": 1})
+            session.add(job)
+            session.commit()
+            v1 = session.scalar(select(Volume).where(Volume.project_id == proj.id, Volume.number == 1))
+            return job_resp(job, manuscript_pdf=proj.manuscript_pdf, volume_id=v1.id if v1 else None, chapters=out)
+        except ValueError:
+            pass  # no contents table: fall back to heading detection below
     try:
         text, offsets = manuscript.extract_text(dst)
     except Exception as exc:  # noqa: BLE001
@@ -1282,7 +1300,7 @@ _KEY_FIELDS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "ge
 def get_keys() -> dict:
     import os
 
-    return {"keys": settings.key_status(), "store": "keychain" if os.environ.get("DHARMA_DESKTOP") else ".env"}
+    return {"keys": settings.key_status(), "store": ("keychain" if os.environ.get("DHARMA_USE_KEYCHAIN") == "1" else "private file") if os.environ.get("DHARMA_DESKTOP") else ".env"}
 
 
 @app.put("/api/settings/keys")
@@ -1298,20 +1316,21 @@ def put_keys(body: dict) -> dict:
         val = (body.get(short) or "").strip() or None
         if desktop:
             stored = False
-            try:
-                import keyring
+            if os.environ.get("DHARMA_USE_KEYCHAIN") == "1":  # opt-in; the default is the private file below
+                try:
+                    import keyring
 
-                if val:
-                    keyring.set_password("Dharma Studio", env_name, val)
-                else:
-                    try:
-                        keyring.delete_password("Dharma Studio", env_name)
-                    except Exception:  # noqa: BLE001
-                        pass
-                stored = True
-            except Exception:  # noqa: BLE001  no Keychain available: owner-only file next to the data
-                stored = False
-            if not stored:
+                    if val:
+                        keyring.set_password("Dharma Studio", env_name, val)
+                    else:
+                        try:
+                            keyring.delete_password("Dharma Studio", env_name)
+                        except Exception:  # noqa: BLE001
+                            pass
+                    stored = True
+                except Exception:  # noqa: BLE001
+                    stored = False
+            if not stored:  # private keys.env next to the data, readable only by this user
                 kf = db.DATA_DIR.parent / "keys.env"
                 lines = kf.read_text().splitlines() if kf.exists() else []
                 lines = [ln for ln in lines if not ln.startswith(env_name + "=")]
@@ -1331,7 +1350,7 @@ def put_keys(body: dict) -> dict:
             os.environ[env_name] = val
         else:
             os.environ.pop(env_name, None)
-    return {"keys": settings.key_status(), "store": "keychain" if desktop else ".env"}
+    return {"keys": settings.key_status(), "store": ("keychain" if os.environ.get("DHARMA_USE_KEYCHAIN") == "1" else "private file") if desktop else ".env"}
 
 
 app.mount("/media", StaticFiles(directory=str(db.DATA_DIR)), name="media")

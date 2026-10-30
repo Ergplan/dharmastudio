@@ -91,7 +91,7 @@ export default function ProjectScreen() {
 
           <div className="col-span-5 flex flex-col gap-5">
             <section className="card">
-              <div className="panel-h"><Key size={12} /> API keys <span className="text-ink-500 font-normal">— stored in the macOS Keychain, never shown</span>
+              <div className="panel-h"><Key size={12} /> API keys <span className="text-ink-500 font-normal">— stored privately on this Mac, never shown</span>
                 <button className="btn ml-auto" onClick={() => setKeysOpen(true)}>Set keys</button></div>
               {keysOpen && <KeysModal onClose={() => setKeysOpen(false)} />}
               <div className="p-4 grid grid-cols-2 gap-2">
@@ -271,7 +271,7 @@ function KeysModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="API keys" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-xs text-ink-400">Paste only the keys you want to set or replace. They are saved to this Mac's Keychain and are never displayed again. Leave a field empty to keep the current key.</p>
+        <p className="text-xs text-ink-400">Paste only the keys you want to set or replace. They are saved privately on this Mac (readable only by your user account) and are never displayed again. Leave a field empty to keep the current key.</p>
         {Object.keys(labels).map(k => (
           <Field key={k} label={labels[k]}>
             <input type="password" autoComplete="off" spellCheck={false} className="input w-full font-mono text-xs" placeholder="paste key" value={vals[k]} onChange={e => setVals({ ...vals, [k]: e.target.value })} />
