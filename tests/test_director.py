@@ -294,3 +294,65 @@ def test_cover_api_compose_paint_typeset(dclient, session):
     out = dclient.post(f"/api/art-director/covers/{v2.id}/typeset", json={"art": "painted"}).json()
     assert out["exports"]["png"].endswith(".png") and out["exports"]["pdf"].endswith(".pdf") and out["text"]["title"] == "THE CYCLE OF DHARMA"
     assert out["exports"]["text"]["volume_line"].startswith("VOLUME TWO")
+
+
+# --- the model paths, with stand-in models ------------------------------------------------------------------------
+
+
+def test_plan_reasks_once_then_repairs_invented_lines():
+    text = "Lanka burned like a mountain of embers. The arrow crossed the field in a line of gold. Ravana fell."
+    brief = SceneBrief(chapter_id=1, action="the arrow crosses the field", characters=["rama"])
+    calls = []
+
+    def ask(role, system, user, images=None, fallback=None, max_tokens=0):
+        calls.append(role)
+        assert "MASTER ART-DIRECTION PROMPT" in system and "STRICT NEGATIVE DIRECTIONS" in system  # the master prompt, verbatim
+        return {"page_beat": "action", "panels": [
+            {"role": "dominant", "scale": "WS", "scene": "the field", "characters": ["rama"], "narration": "Lanka burned like a mountain of embers."},
+            {"role": "narrative", "scale": "MS", "scene": "the arrow", "characters": ["rama"], "dialogue": "I shall end you tonight!", "speaker": "Rama"},
+            {"role": "narrative", "scale": "MS", "scene": "the king", "characters": ["rama"], "narration": "Ravana fell."},
+            {"role": "detail", "scale": "CU", "scene": "the arrow head", "characters": []}]}
+
+    plan = A.plan_page(text, brief, "Chapter 1", "treta", ask=ask)
+    assert calls == ["script_writer", "script_writer"]  # asked, then re-asked once with the failures
+    assert plan["source"] == "model+repair" and plan["attempts"] == 2
+    for p in plan["panels"]:
+        for t in (p["narration"], p["dialogue"]):
+            assert not t or is_verbatim(t, text)
+
+
+def test_revision_loop_uses_the_critics_fix(dclient, session, monkeypatch):
+    seen = {"n": 0}
+
+    def fake_critique(image, references, panel, brief, age, chapter_label, looks, ask=None):
+        seen["n"] += 1
+        bad = seen["n"] % 2 == 1  # every first paint fails, its revision passes
+        sc = {str(i): (4 if bad and i == 2 else 8) for i in range(1, 11)}
+        return {"judged": True, "scores": sc, "violations": [{"rule": "No randomly changing character designs.", "detail": "face differs from the reference"}] if bad else [],
+                "fix_prompt": "match Rama's reference face exactly" if bad else ""}
+
+    monkeypatch.setattr(A, "critique", fake_critique)
+    ch1 = session.scalar(select(Chapter).join(Volume).where(Volume.number == 1, Chapter.number == 1))
+    tmp = Chapter(volume_id=ch1.volume_id, number=902, title=ch1.title, text=ch1.text)
+    session.add(tmp)
+    session.commit()
+    try:
+        brief = {"chapter_id": tmp.id, "action": "Rama fits Agastya's arrow to the bow", "characters": ["rama"], "page_number": 1}
+        r = dclient.post("/api/art-director/direct", json={"brief": brief, "settings": {"candidates": 1, "retries": 2}})
+        j = wait(dclient, r.json()["job_id"])
+        assert j["status"] == "done", j["log"]
+        run = dclient.get(f"/api/art-director/runs/{r.json()['run']['id']}").json()
+        n_panels = len(run["plan"]["panels"])
+        assert len(run["candidates"]) == 2 * n_panels  # first paint + one revision per panel
+        assert sum(1 for s in run["steps"] if s["step"] == "revise") == n_panels
+        revised = [p for p in run["prompts"] if p["attempt"] == 1]
+        assert revised and all("match Rama's reference face exactly" in p["prompt"] for p in revised)
+        assert run["flags"] == []  # every panel passed after its revision
+        for c in run["candidates"]:
+            assert c["selected"] == (c["attempt"] == 1)
+    finally:
+        session.expire_all()
+        for pg in session.scalars(select(Page).where(Page.chapter_id == tmp.id)).all():
+            session.delete(pg)
+        session.delete(session.get(Chapter, tmp.id))
+        session.commit()

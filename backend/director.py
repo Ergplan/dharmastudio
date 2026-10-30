@@ -15,6 +15,7 @@ A run, step by step (each step appended to DirectorRun.steps and the job log):
 
 from __future__ import annotations
 
+import copy
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -419,7 +420,7 @@ def execute_run(session: Session, run: DirectorRun, ctx: Any) -> dict[str, Any]:
                             "critic_notes": "; ".join(v.get("reasons") or [])[:500]}
                     panel_cands.append(entry)
                     cand_log.append(entry)
-                    run.candidates = list(cand_log)
+                    run.candidates = copy.deepcopy(cand_log)
                     run.cost_usd = round(spent["img"] + spent["text"], 4)
                     _step(session, run, "critic", f"p{page.number}.{panel.n} cand {c.id}: " + ("PASS" if v["pass"] else ("unjudged" if not v["judged"] else "fail")) +
                           (f" mean {v['mean']}" if v.get("mean") is not None else "") + (f" — {'; '.join(v['reasons'][:3])}" if v["reasons"] and v["judged"] else ""), ctx)
@@ -435,7 +436,7 @@ def execute_run(session: Session, run: DirectorRun, ctx: Any) -> dict[str, Any]:
                 for e in cand_log:
                     if e["panel_id"] == panel.id:
                         e["selected"] = e["candidate_id"] == chosen.id
-                run.candidates = list(cand_log)
+                run.candidates = copy.deepcopy(cand_log)
                 if not best["verdict"]["pass"]:
                     flags.append({"panel": panel.n, "panel_id": panel.id, "candidate_id": chosen.id, "reasons": best["verdict"]["reasons"]})
                 session.commit()
