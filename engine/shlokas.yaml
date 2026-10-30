@@ -1,0 +1,81 @@
+# Sanskrit verses lettered into the parchment (typeset, never painted). Public-domain scripture.
+# tags pick verses for a page from its chapter's cast/era/beat; `lines` are set one per row, danda in red.
+shlokas:
+  - id: gita-2-47
+    source: Bhagavad Gita 2.47
+    lines: ["कर्मण्येवाधिकारस्ते मा फलेषु कदाचन ।", "मा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि ॥"]
+    iast: "karmaṇy evādhikāras te mā phaleṣu kadācana | mā karma-phala-hetur bhūr mā te saṅgo 'stv akarmaṇi ||"
+    meaning: "Your right is to the work alone, never to its fruits; let the fruit not be your motive, nor cling to inaction."
+    tags: [krishna, arjuna, dwapara, fruit, knowledge, phala]
+  - id: gita-4-7
+    source: Bhagavad Gita 4.7
+    lines: ["यदा यदा हि धर्मस्य ग्लानिर्भवति भारत ।", "अभ्युत्थानमधर्मस्य तदात्मानं सृजाम्यहम् ॥"]
+    iast: "yadā yadā hi dharmasya glānir bhavati bhārata | abhyutthānam adharmasya tadātmānaṃ sṛjāmy aham ||"
+    meaning: "Whenever dharma declines and adharma rises, O Bharata, I bring myself forth."
+    tags: [krishna, kalki, war, peak, dwapara, phala, core]
+  - id: gita-4-8
+    source: Bhagavad Gita 4.8
+    lines: ["परित्राणाय साधूनां विनाशाय च दुष्कृताम् ।", "धर्मसंस्थापनार्थाय सम्भवामि युगे युगे ॥"]
+    iast: "paritrāṇāya sādhūnāṃ vināśāya ca duṣkṛtām | dharma-saṃsthāpanārthāya sambhavāmi yuge yuge ||"
+    meaning: "To protect the good, to end the wicked, to establish dharma, I come into being age after age."
+    tags: [rama, krishna, kalki, war, peak, treta, dwapara, cycle]
+  - id: gita-3-27
+    source: Bhagavad Gita 3.27
+    lines: ["प्रकृतेः क्रियमाणानि गुणैः कर्माणि सर्वशः ।", "अहङ्कारविमूढात्मा कर्ताहमिति मन्यते ॥"]
+    iast: "prakṛteḥ kriyamāṇāni guṇaiḥ karmāṇi sarvaśaḥ | ahaṅkāra-vimūḍhātmā kartāham iti manyate ||"
+    meaning: "All actions are done by the qualities of nature; the self deluded by ego thinks, 'I am the doer.'"
+    tags: [ravana, ego, core, phala, knowledge]
+  - id: gita-2-20
+    source: Bhagavad Gita 2.20
+    lines: ["न जायते म्रियते वा कदाचि-", "न्नायं भूत्वा भविता वा न भूयः ।", "अजो नित्यः शाश्वतोऽयं पुराणो", "न हन्यते हन्यमाने शरीरे ॥"]
+    iast: "na jāyate mriyate vā kadācin nāyaṃ bhūtvā bhavitā vā na bhūyaḥ | ajo nityaḥ śāśvato 'yaṃ purāṇo na hanyate hanyamāne śarīre ||"
+    meaning: "It is never born and never dies; unborn, eternal, ancient, it is not slain when the body is slain."
+    tags: [death, quiet, voice, epilogue, hanuman]
+  - id: isha-1
+    source: Ishavasya Upanishad 1
+    lines: ["ईशा वास्यमिदं सर्वं यत्किञ्च जगत्यां जगत् ।", "तेन त्यक्तेन भुञ्जीथा मा गृधः कस्यस्विद्धनम् ॥"]
+    iast: "īśā vāsyam idaṃ sarvaṃ yat kiñca jagatyāṃ jagat | tena tyaktena bhuñjīthā mā gṛdhaḥ kasya svid dhanam ||"
+    meaning: "All this, whatever moves in the world, is pervaded by the Lord; enjoy by renouncing; do not covet anyone's wealth."
+    tags: [ego, ownership, core, knowledge, phala]
+  - id: manu-8-15
+    source: Manusmriti 8.15
+    lines: ["धर्म एव हतो हन्ति धर्मो रक्षति रक्षितः ।", "तस्माद्धर्मो न हन्तव्यो मा नो धर्मो हतोऽवधीत् ॥"]
+    iast: "dharma eva hato hanti dharmo rakṣati rakṣitaḥ | tasmād dharmo na hantavyo mā no dharmo hato 'vadhīt ||"
+    meaning: "Dharma destroyed destroys; dharma protected protects. So dharma must not be destroyed, lest it destroy us."
+    tags: [opener, dharma, vibhishana, any]
+  - id: ramayana-1-1-1
+    source: Valmiki Ramayana 1.1.1
+    lines: ["तपःस्वाध्यायनिरतं तपस्वी वाग्विदां वरम् ।", "नारदं परिपप्रच्छ वाल्मीकिर्मुनिपुङ्गवम् ॥"]
+    iast: "tapaḥ-svādhyāya-nirataṃ tapasvī vāg-vidāṃ varam | nāradaṃ paripapraccha vālmīkir muni-puṅgavam ||"
+    meaning: "The ascetic Valmiki asked Narada, devoted to austerity and study, best of the eloquent, foremost of sages."
+    tags: [opener, treta, rama, prologue]
+  - id: rama-raksha
+    source: Ramaraksha Stotra
+    lines: ["रामाय रामभद्राय रामचन्द्राय वेधसे ।", "रघुनाथाय नाथाय सीतायाः पतये नमः ॥"]
+    iast: "rāmāya rāmabhadrāya rāmacandrāya vedhase | raghunāthāya nāthāya sītāyāḥ pataye namaḥ ||"
+    meaning: "Salutations to Rama, Ramabhadra, Ramachandra, the creator; to the lord of the Raghus, the lord, the husband of Sita."
+    tags: [rama, treta, lanka, war, knowledge]
+  - id: manojavam
+    source: Hanuman dhyana (Ramaraksha Stotra 33)
+    lines: ["मनोजवं मारुततुल्यवेगं जितेन्द्रियं बुद्धिमतां वरिष्ठम् ।", "वातात्मजं वानरयूथमुख्यं श्रीरामदूतं शरणं प्रपद्ये ॥"]
+    iast: "manojavaṃ māruta-tulya-vegaṃ jitendriyaṃ buddhimatāṃ variṣṭham | vātātmajaṃ vānara-yūtha-mukhyaṃ śrī-rāma-dūtaṃ śaraṇaṃ prapadye ||"
+    meaning: "I take refuge in the messenger of Rama, swift as the mind, fast as the wind, master of the senses, foremost of the wise, son of the wind, chief of the vanaras."
+    tags: [hanuman, voice, leap, any]
+  - id: mahamrityunjaya
+    source: Rig Veda 7.59.12 (Mahamrityunjaya)
+    lines: ["ॐ त्र्यम्बकं यजामहे सुगन्धिं पुष्टिवर्धनम् ।", "उर्वारुकमिव बन्धनान्मृत्योर्मुक्षीय माऽमृतात् ॥"]
+    iast: "oṃ tryambakaṃ yajāmahe sugandhiṃ puṣṭi-vardhanam | urvārukam iva bandhanān mṛtyor mukṣīya mā 'mṛtāt ||"
+    meaning: "We worship the three-eyed one, fragrant, who nourishes; like a ripe fruit from its stem, may he free us from death, not from immortality."
+    tags: [shiva, prabhas, death, rameshwaram, knowledge]
+  - id: varaha-70-47
+    source: Varaha Purana 70.47 (Rudra to Agastya)
+    lines: ["य एवं वेत्ति विप्रर्षे परं नारायणं तथा ।", "अपरं पद्मयोनिं तु ब्रह्माणं त्वपरं तु माम् ।", "गुणतो मुख्यतस्त्वेक एवाहं मोह इत्युत ॥"]
+    iast: "ya evaṃ vetti viprarṣe paraṃ nārāyaṇaṃ tathā | aparaṃ padmayoniṃ tu brahmāṇaṃ tv aparaṃ tu mām | guṇato mukhyatas tv eka evāhaṃ moha ity uta ||"
+    meaning: "Shiva's verse in the book: Narayana, Brahma and Shiva are one in essence; to see them as separate is delusion."
+    tags: [shiva, hanuman, dhanushkodi, revelation, knowledge]
+  - id: satyameva
+    source: Mundaka Upanishad 3.1.6
+    lines: ["सत्यमेव जयते नानृतं", "सत्येन पन्था विततो देवयानः ।"]
+    iast: "satyam eva jayate nānṛtaṃ satyena panthā vitato devayānaḥ |"
+    meaning: "Truth alone triumphs, not falsehood; by truth the divine path is laid out."
+    tags: [any, vibhishana, resistance, girgaon]
