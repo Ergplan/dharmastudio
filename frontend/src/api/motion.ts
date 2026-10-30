@@ -33,7 +33,7 @@ export interface QROptions {
   colours: { id: string; hex: string; label: string }[]; defaults: QRStyle; decoder: boolean; test_dpis: number[]
 }
 export interface QRLive { url: string; width_mm: number; height_mm: number; png: string; style: QRStyle; test?: QRTest }
-export interface PageQREl { id: ID; qr_id: ID; url: string; x_mm: number; y_mm: number; w_mm: number; h_mm: number; colour: string; tested: boolean; code: string }
+export interface PageQREl { id: ID; qr_id: ID; url: string; x_mm: number; y_mm: number; w_mm: number; h_mm: number; size_mm: number; sym_x_mm: number; colour: string; tested: boolean; code: string }
 
 export type ShotSource = 'kenburns' | 'seedance'
 export interface Shot { panel_id?: ID; take_id?: ID; source: ShotSource; duration_s: number; move: string; focal?: { x: number; y: number }; thumb?: string | null }

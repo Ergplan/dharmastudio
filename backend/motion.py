@@ -74,11 +74,22 @@ def panel_focal(panel: Panel) -> tuple[float, float]:
         return (0.5, 0.5)
 
 
+# a page with one or two panels still gets three shots: the same art, different moves and points of interest
+COVERAGE = (("push_in", (0.5, 0.5)), ("pan", (0.5, 0.5)), ("pull_out", (0.62, 0.45)), ("parallax", (0.35, 0.5)))
+
+
 def default_shots(session: Session, page: Page) -> list[dict[str, Any]]:
+    panels = [p for p in page.panels if panel_still(session, p)]
     out = []
-    for i, p in enumerate([p for p in page.panels if panel_still(session, p)]):
+    for i, p in enumerate(panels):
         fx, fy = panel_focal(p)
         out.append({"panel_id": p.id, "source": "kenburns", "duration_s": 6, "move": DEFAULT_MOVES[i % len(DEFAULT_MOVES)], "focal": {"x": fx, "y": fy}})
+    k = 0
+    while panels and len(out) < 3:
+        p = panels[k % len(panels)]
+        mv, (fx, fy) = COVERAGE[(len(out)) % len(COVERAGE)]
+        out.append({"panel_id": p.id, "source": "kenburns", "duration_s": 8, "move": mv, "focal": {"x": fx, "y": fy}})
+        k += 1
     return out
 
 

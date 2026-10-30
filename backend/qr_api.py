@@ -193,8 +193,10 @@ def page_elements(session: Session, page_id: int) -> list[dict[str, Any]]:
         url = url_of(session, q)
         w, h = Q.dimensions(url, st)
         p = element_png_path(session, pq)
+        # x/y/w/h: the printed box (a long URL label can be wider than the symbol); size_mm/sym_x_mm: the symbol as stored
         out.append({"id": pq.id, "qr_id": q.id, "path": p, "url": db.media_url(db.rel(p)), "x_mm": pq.x_mm - (w - pq.w_mm) / 2, "y_mm": pq.y_mm,
-                    "w_mm": w, "h_mm": h, "colour": st.colour, "tested": is_tested(session, q), "code": session.get(Link, q.link_id).code})
+                    "w_mm": w, "h_mm": h, "size_mm": pq.w_mm, "sym_x_mm": pq.x_mm, "colour": st.colour, "tested": is_tested(session, q),
+                    "code": session.get(Link, q.link_id).code})
     return out
 
 
