@@ -11,6 +11,7 @@ import { ShardTools } from '@/components/pages/ShardTools'
 import { MarginaliaDrawer } from '@/components/pages/MarginaliaDrawer'
 import { PanelInspector } from '@/components/pages/PanelInspector'
 import { DirectorModal } from '@/components/pages/DirectorModal'
+import { TypePopover } from '@/components/pages/TypePopover'
 import { fitPage } from '@/lib/mm'
 import { toast } from '@/store/toasts'
 
@@ -69,7 +70,7 @@ export default function PagesScreen() {
   return (
     <div className="h-full flex min-h-0">
       {/* LEFT: thumbnails */}
-      <div className="w-[196px] shrink-0 border-r border-ink-800 flex flex-col min-h-0">
+      <div className="w-[12.25rem] shrink-0 border-r border-ink-800 flex flex-col min-h-0">
         <div className="panel-h">
           <select className="select h-6 text-2xs" value={ed.chapterId ?? ''} onChange={(e) => ed.setChapter(Number(e.target.value))}>{chapters.map(c => <option key={c.id} value={c.id}>v{c.volume_id} · ch {c.number}</option>)}</select>
         </div>
@@ -77,7 +78,7 @@ export default function PagesScreen() {
           {pages?.length === 0 && <Empty>No pages — prefill the chapter from Script.</Empty>}
           {pages?.map(p => <Thumb key={p.id} p={p} active={p.id === ed.pageId} onClick={() => ed.setPage(p.id)} lang={ed.lang} canvas={ed.canvasOverride ?? p.canvas_override ?? null} />)}
         </div>
-        <div className="px-2 py-1.5 border-t border-ink-800 text-[10px] text-ink-500 flex flex-wrap gap-x-2 gap-y-0.5"><span><span className="kbd">←</span><span className="kbd">→</span> pages</span><span><span className="kbd">1</span>–<span className="kbd">9</span> panel</span><span><span className="kbd">G</span> generate</span><span><span className="kbd">A</span> approve</span><span><span className="kbd">E</span> shards</span><span><span className="kbd">M</span> marginalia</span></div>
+        <div className="px-2 py-1.5 border-t border-ink-800 text-[0.625rem] text-ink-500 flex flex-wrap gap-x-2 gap-y-0.5"><span><span className="kbd">←</span><span className="kbd">→</span> pages</span><span><span className="kbd">1</span>–<span className="kbd">9</span> panel</span><span><span className="kbd">G</span> generate</span><span><span className="kbd">A</span> approve</span><span><span className="kbd">E</span> shards</span><span><span className="kbd">M</span> marginalia</span></div>
       </div>
 
       {/* CENTRE */}
@@ -95,6 +96,7 @@ export default function PagesScreen() {
             <span className="w-px h-4 bg-ink-700 mx-1" />
             <div className="flex rounded border border-ink-600 overflow-hidden">{(['en', 'hi'] as const).map(l => <button key={l} className={cx('h-6 px-2 text-2xs uppercase', ed.lang === l ? 'bg-gold-500/20 text-gold-300' : 'text-ink-400 hover:bg-ink-800')} onClick={() => ed.setLang(l)}>{l}</button>)}</div>
             <select className="select h-6 w-auto text-2xs" value={ed.canvasOverride ?? page.canvas_override ?? ''} onChange={(e) => { const v = e.target.value || null; ed.setCanvasOverride(v); savePage.mutate({ id: page.id, canvas_override: v }) }} title="Canvas override for this page"><option value="">canvas: volume default</option>{canvases.map(c => <option key={c.key} value={c.key}>canvas: {c.name}</option>)}</select>
+            <TypePopover page={page} />
             <div className="flex-1" />
             <button className="btn btn-sm" title="Open the page's standalone HTML artifact in a new tab" onClick={() => openRenderInNewTab(page.id, { lang: ed.lang, ...(ed.canvasOverride ? { canvas: ed.canvasOverride } : {}) })}><ExternalLink size={11} /> Page HTML</button>
             <button className="btn btn-sm" onClick={() => setDirector(true)} title="Make pages in one instruction (SPEC §9)"><Clapperboard size={11} /> Director</button>
@@ -128,7 +130,7 @@ export default function PagesScreen() {
       </div>
 
       {/* RIGHT */}
-      <div className="w-[400px] shrink-0 border-l border-ink-800 flex flex-col min-h-0 bg-ink-900/40">
+      <div className="w-[25rem] shrink-0 border-l border-ink-800 flex flex-col min-h-0 bg-ink-900/40">
         {!page ? null : ed.shardEditor ? <ShardTools panels={panels} selected={panel} frozen={!!frozen} /> : ed.marginalia ? <MarginaliaDrawer page={page} frozen={!!frozen} /> : panel ? (
           <PanelInspector key={panel.id} panel={panel} page={page} chars={chars} gateBlocked={gateBlocked} provider={provider} setProvider={setProvider} n={n} setN={setN} pageNumber={page.number} />
         ) : (
@@ -160,7 +162,7 @@ function Thumb({ p, active, onClick, lang, canvas }: { p: Page; active: boolean;
     <button onClick={onClick} className={cx('rounded-md border text-left overflow-hidden bg-ink-900 hover:border-ink-400 transition-colors', active ? 'border-gold-500 ring-1 ring-gold-500/30' : 'border-ink-700')}>
       <div className="relative" style={{ height: t.h }}>
         {p.thumb ? <img src={p.thumb} alt="" className="w-full h-full object-cover" /> : <PageFrame html={html} t={t} title={`page ${p.number}`} />}
-        <span className="absolute top-1 left-1 font-mono text-[10px] px-1 rounded bg-black/70 text-ink-200">{p.number}</span>
+        <span className="absolute top-1 left-1 font-mono text-[0.625rem] px-1 rounded bg-black/70 text-ink-200">{p.number}</span>
         <StatusBadge status={p.status} className="absolute top-1 right-1" />
       </div>
       {p.balance && <div className="px-1.5 py-1"><BalanceMeter b={p.balance} /></div>}

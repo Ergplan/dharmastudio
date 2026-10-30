@@ -6,6 +6,7 @@ import { useSavePanel, useSelectCandidate, useRejectCandidate, useApiMutation, t
 import { api, mediaUrl } from '@/api/client'
 import { cx, Field, Chip, JobProgress, usd } from '@/components/ui'
 import { useEditor } from '@/store/editor'
+import { CalloutPanel } from './CalloutPanel'
 
 export function PanelInspector({ panel, page, chars, gateBlocked, provider, setProvider, n, setN, pageNumber }: {
   panel: Panel; page: Page; chars: Character[]; gateBlocked: string | null; provider: Provider; setProvider: (p: Provider) => void; n: number; setN: (n: number) => void; pageNumber: number
@@ -64,6 +65,8 @@ export function PanelInspector({ panel, page, chars, gateBlocked, provider, setP
             {panel.characters.filter(f => !chars.some(c => c.form_key === f)).map(f => <Chip key={f} on onClick={() => toggleChar(f)}>{f}</Chip>)}
           </div>
         </div>
+
+        <CalloutPanel panel={panel} />
 
         <div>
           <div className="label mb-1 flex items-center gap-2">Candidates {shown && <span className="ml-auto normal-case tracking-normal font-mono text-ink-500">{shown.provider} · {shown.model} · {usd(shown.cost_usd)}{shown.qa && typeof shown.qa.score === 'number' ? ` · critic ${shown.qa.score}` : ''}</span>}</div>
