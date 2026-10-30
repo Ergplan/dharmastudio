@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from engine import typography as T
 from engine.canvases import CANVASES, ensure_textures
 from engine.comic import layout as L
 from engine.comic.enhance import upscale
@@ -97,6 +98,7 @@ def panel_view(session: Session, panel: Panel, prefer_enhanced: bool = False) ->
         text_state=panel.state, scale=panel.scale, beat=panel.beat, weight=panel.weight or 1.0,
         caption_en=panel.caption_en or "", caption_hi=panel.caption_hi or "", balloon_en=panel.balloon_en or "", balloon_hi=panel.balloon_hi or "",
         speaker=panel.speaker, image_path=path, image_url=url, characters=list(panel.characters or []),
+        sfx=panel.sfx or "", text_colours=panel.text_colours or None,
     )
 
 
@@ -122,8 +124,25 @@ def marginalia_views(session: Session, page: Page) -> list[L.MarginaliaView]:
     return out
 
 
+def volume_typography(vol: Volume | None) -> dict[str, Any]:
+    """The volume's stored setting, completed with the defaults (what GET /api/volumes/{id}/typography returns)."""
+    return T.merge((vol.typography if vol else None) or {})
+
+
+def ensure_typography(session: Session) -> None:
+    """Volume 1 starts on the default type (Illuminated manuscript, size L) when it has none stored yet."""
+    for v in session.scalars(select(Volume).where(Volume.number == 1)).all():
+        if not v.typography:
+            v.typography = dict(T.DEFAULT_SETTING)
+
+
+def page_typography(page: Page) -> T.TypeSpec:
+    return T.resolve(page.chapter.volume.typography or {}, page.typography_override or {})
+
+
 def page_view(session: Session, page: Page, prefer_enhanced: bool = False) -> L.PageView:
-    return L.PageView(number=page.number, panels=[panel_view(session, p, prefer_enhanced) for p in page.panels], beat=page.beat, is_opener=page.is_opener, title=title_block(page) if page.is_opener else None, marginalia=marginalia_views(session, page), seed=page.seed or 7)
+    return L.PageView(number=page.number, panels=[panel_view(session, p, prefer_enhanced) for p in page.panels], beat=page.beat, is_opener=page.is_opener, title=title_block(page) if page.is_opener else None,
+                      marginalia=marginalia_views(session, page), seed=page.seed or 7, typography=page_typography(page))
 
 
 # ---------------------------------------------------------------------------------
@@ -200,18 +219,23 @@ def page_gate(session: Session, page: Page) -> list[str]:
 # ---------------------------------------------------------------------------------
 
 
-def page_html(session: Session, page: Page, lang: str = "en", paper: str = "screen", embed: bool = False, prefer_enhanced: bool = False, canvas_key: str | None = None) -> str:
+def page_html(session: Session, page: Page, lang: str = "en", paper: str = "screen", embed: bool = False, prefer_enhanced: bool = False, canvas_key: str | None = None, faces: set | None = None) -> str:
+    """One page's <section>. Adds the faces it uses to `faces` (for the document's @font-face rules)."""
     ensure_shapes(session, page)
     opts = L.RenderOptions(lang=lang, paper=paper, embed=embed)
     cv = canvas_view(canvas_for_page(session, page, canvas_key))
-    return L.page_html(page_view(session, page, prefer_enhanced), cv, opts)
+    view = page_view(session, page, prefer_enhanced)
+    if faces is not None:
+        faces |= T.faces_of(L.used_fonts(view, lang))
+    return L.page_html(view, cv, opts)
 
 
 def page_document(session: Session, page: Page, lang: str = "en", paper: str = "screen", embed: bool = False, prefer_enhanced: bool = False, canvas_key: str | None = None) -> str:
     """A standalone HTML document for one page (the live render and the stored artifact)."""
     opts = L.RenderOptions(lang=lang, paper=paper, embed=embed)
-    body = page_html(session, page, lang, paper, embed, prefer_enhanced, canvas_key)
-    return L.book_html([body], f"{page.chapter.volume.project.title} · p{page.number} · {lang}", opts)
+    faces: set = set()
+    body = page_html(session, page, lang, paper, embed, prefer_enhanced, canvas_key, faces)
+    return L.book_html([body], f"{page.chapter.volume.project.title} · p{page.number} · {lang}", opts, faces)
 
 
 def page_manifest(session: Session, page: Page) -> dict[str, Any]:
@@ -288,7 +312,8 @@ def build_export(session: Session, pages: list[Page], lang: str, paper: str, ups
                     cost += float(r.get("cost_usd") or 0.0)
                     log(f"upscale p{pg.number}.{p.n}: {r['tool']} x{r['factor']}")
     opts = L.RenderOptions(lang=lang, paper=paper, embed=True)
-    htmls = [page_html(session, pg, lang=lang, paper=paper, embed=True, prefer_enhanced=upscale_images) for pg in pages]
+    faces: set = set()
+    htmls = [page_html(session, pg, lang=lang, paper=paper, embed=True, prefer_enhanced=upscale_images, faces=faces) for pg in pages]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     base = f"{name}-{lang}" + ("-print" if paper == "print" else "") + f"-{stamp}"
     pdf = out_dir / f"{base}.pdf"
@@ -300,7 +325,7 @@ def build_export(session: Session, pages: list[Page], lang: str, paper: str, ups
             _last["pct"] = pct
             log(msg)
 
-    L.render_pdf(L.book_html(htmls, f"The Cycle of Dharma · {base}", opts), pdf, progress=_engine_progress)
+    L.render_pdf(L.book_html(htmls, f"The Cycle of Dharma · {base}", opts, faces), pdf, progress=_engine_progress)
     try:
         compress_pdf(pdf)
     except Exception as exc:  # noqa: BLE001

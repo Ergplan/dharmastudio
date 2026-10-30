@@ -33,8 +33,36 @@ def _sqlite_pragmas(dbapi_conn, _record) -> None:  # noqa: ANN001
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
+# columns added after a studio.db may already exist: (table, column, SQL type). Added at startup when missing; nothing
+# is ever dropped or rewritten.
+ADDED_COLUMNS = (
+    ("volume", "typography", "JSON"),
+    ("page", "typography_override", "JSON"),
+    ("panel", "sfx", "TEXT DEFAULT ''"),
+    ("panel", "text_colours", "JSON"),
+)
+
+
+def migrate() -> list[str]:
+    """Light, additive migration for existing studio.db files. Returns the columns it added."""
+    from sqlalchemy import inspect, text
+
+    added: list[str] = []
+    insp = inspect(engine)
+    tables = set(insp.get_table_names())
+    with engine.begin() as conn:
+        for table, col, sqltype in ADDED_COLUMNS:
+            if table not in tables:
+                continue
+            if col not in {c["name"] for c in insp.get_columns(table)}:
+                conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{col}" {sqltype}'))
+                added.append(f"{table}.{col}")
+    return added
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    migrate()
     for sub in ("canvases", "candidates", "refs", "silhouettes", "exports", "artifacts", "enhanced", "manuscript"):
         (DATA_DIR / sub).mkdir(parents=True, exist_ok=True)
 

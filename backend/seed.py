@@ -45,6 +45,7 @@ def seed_volumes(session: Session, proj: Project) -> dict[int, Volume]:
             if num == 1:
                 vol.canvas_id = session.scalar(select(Canvas.id).where(Canvas.key == canvas_key))
         out[num] = vol
+    render.ensure_typography(session)
     return out
 
 

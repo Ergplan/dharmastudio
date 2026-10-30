@@ -71,7 +71,7 @@ def test_render_html(client):
         html = client.get(f"/api/pages/{pg['id']}/render?lang=hi").text
         assert html.count("<clipPath") == len(pg["panels"])
         assert "हिंदी अनुवाद लंबित" in html  # the Devanagari fallback for untranslated captions
-        assert "DevSerif" in html or "/api/fonts.css" in html
+        assert "@font-face" in html and "/api/fonts/TiroDevanagariHindi-Regular.ttf" in html  # the volume's Hindi narration face
     en = client.get(f"/api/pages/{pages[0]['id']}/render?lang=en&embed=true").text
     assert "The Last Night of Lanka" in en and "@font-face" in en and "data:image/jpeg" in en
     pr = client.get(f"/api/pages/{pages[0]['id']}/render?lang=en&paper=print").text

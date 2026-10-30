@@ -38,6 +38,7 @@ class Volume(Base):
     title: Mapped[str] = mapped_column(String(200), default="")
     canvas_id: Mapped[int | None] = mapped_column(ForeignKey("canvas.id"), nullable=True)
     era_default: Mapped[str] = mapped_column(String(40), default="treta")
+    typography: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # engine/typography.py setting; None = default
 
     project: Mapped[Project] = relationship(back_populates="volumes")
     canvas: Mapped["Canvas | None"] = relationship()
@@ -120,6 +121,7 @@ class Page(Base):
     epigraph: Mapped[str] = mapped_column(Text, default="")
     epigraph_hi: Mapped[str] = mapped_column(Text, default="")
     artifacts: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # {"en": path, "hi": path} written on approve
+    typography_override: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # partial setting over the volume's
 
     chapter: Mapped[Chapter] = relationship(back_populates="pages")
     panels: Mapped[list["Panel"]] = relationship(back_populates="page", order_by="Panel.n", cascade="all, delete-orphan")
@@ -149,6 +151,8 @@ class Panel(Base):
     hi_is_draft: Mapped[bool] = mapped_column(Boolean, default=False)
     selected_candidate_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     locked_shape: Mapped[bool] = mapped_column(Boolean, default=False)
+    sfx: Mapped[str | None] = mapped_column(Text, nullable=True, default="")  # lettered sound effect; empty = none
+    text_colours: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # pinned callout colours; None = auto
 
     page: Mapped[Page] = relationship(back_populates="panels")
     candidates: Mapped[list["Candidate"]] = relationship(back_populates="panel", order_by="Candidate.id", cascade="all, delete-orphan")

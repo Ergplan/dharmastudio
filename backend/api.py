@@ -22,7 +22,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from engine import agents, llm, providers
+from engine import agents, colour, llm, providers
+from engine import typography as T
 from engine.canvases import CANVASES
 from engine.comic import layout as L
 from engine.comic.script import STATES
@@ -37,6 +38,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
     db.init_db()
     with db.session_scope() as s:
         render.ensure_canvases(s)
+        render.ensure_typography(s)
         jobs.sync_models(s)
     jobs.start_worker()
     yield
@@ -79,7 +81,8 @@ def j_chapter(c: Chapter, brief: bool = False) -> dict[str, Any]:
 
 def j_volume(v: Volume) -> dict[str, Any]:
     return {"id": v.id, "project_id": v.project_id, "number": v.number, "title": v.title, "canvas_id": v.canvas_id, "canvas_key": v.canvas.key if v.canvas else None,
-            "era_default": v.era_default, "suggested_canvas_keys": SUGGESTED.get(v.number, []), "chapters": [j_chapter(c, brief=True) for c in v.chapters]}
+            "era_default": v.era_default, "suggested_canvas_keys": SUGGESTED.get(v.number, []), "chapters": [j_chapter(c, brief=True) for c in v.chapters],
+            "typography": render.volume_typography(v)}
 
 
 def j_ref(r: CharacterRef) -> dict[str, Any]:
@@ -100,7 +103,7 @@ def j_panel(session: Session, p: Panel) -> dict[str, Any]:
     return {"id": p.id, "page_id": p.page_id, "n": p.n, "number": p.page.number * 100 + p.n, "kind": p.kind, "shape": p.shape, "image_group": p.image_group, "scene": p.scene, "scale": p.scale, "state": p.state,
             "beat": p.beat, "weight": p.weight, "characters": list(p.characters or []), "environment": p.environment, "source_page": p.source_page, "caption_en": p.caption_en or "", "caption_hi": p.caption_hi or "",
             "balloon_en": p.balloon_en or "", "balloon_hi": p.balloon_hi or "", "speaker": p.speaker or "", "hi_is_draft": p.hi_is_draft, "selected_candidate_id": p.selected_candidate_id,
-            "locked_shape": p.locked_shape, "unlocked": render.panel_gate(session, p), "candidates": [j_candidate(c) for c in p.candidates], "image_url": db.media_url(sel.path) if sel else None}
+            "locked_shape": p.locked_shape, "sfx": p.sfx or "", "text_colours": p.text_colours or None, "unlocked": render.panel_gate(session, p), "candidates": [j_candidate(c) for c in p.candidates], "image_url": db.media_url(sel.path) if sel else None}
 
 
 def j_page(session: Session, pg: Page) -> dict[str, Any]:
@@ -115,7 +118,8 @@ def j_page(session: Session, pg: Page) -> dict[str, Any]:
     return {"id": pg.id, "chapter_id": pg.chapter_id, "number": pg.number, "beat": pg.beat or look.beat, "beat_explicit": pg.beat, "status": pg.status,
             "canvas_override": override.key if override else None, "marginalia": pg.marginalia or [], "seed": pg.seed, "is_opener": pg.is_opener, "epigraph": pg.epigraph, "epigraph_hi": pg.epigraph_hi,
             "balance": render.balance(session, pg), "thumb": db.media_url(thumb.path) if thumb else None, "artifact": arts.get("en"), "artifacts": arts,
-            "gate": {"ok": not unlocked, "unlocked": unlocked}, "look": look.__dict__, "panels": [j_panel(session, p) for p in pg.panels]}
+            "gate": {"ok": not unlocked, "unlocked": unlocked}, "look": look.__dict__, "typography_override": pg.typography_override or None,
+            "typography": render.page_typography(pg).summary(), "panels": [j_panel(session, p) for p in pg.panels]}
 
 
 JOB_LABELS = {"panel": "Panel", "page": "Page", "refs": "References", "silhouettes": "Silhouettes", "prefill": "Prefill", "hindi": "Hindi drafts", "propose": "Propose cast", "export": "Export", "batch": "Director", "manuscript": "Manuscript"}
@@ -335,6 +339,58 @@ def put_volume(vid: int, body: VolumeIn, session: Session = S()) -> dict[str, An
         v.era_default = body.era_default
     session.commit()
     return j_volume(v)
+
+
+@app.get("/api/volumes/{vid}/typography")
+def get_volume_typography(vid: int, session: Session = S()) -> dict[str, Any]:
+    v = session.get(Volume, vid)
+    if v is None:
+        raise HTTPException(404, "volume not found")
+    return {"volume_id": v.id, "stored": v.typography or {}, "typography": render.volume_typography(v), "resolved": T.resolve(v.typography or {}).summary()}
+
+
+@app.put("/api/volumes/{vid}/typography")
+def put_volume_typography(vid: int, body: dict[str, Any], session: Session = S()) -> dict[str, Any]:
+    """A full or partial setting. Keys sent as null are removed (inherit the preset/default); sending `preset` alone
+    clears the per-role fonts so the preset's own fonts apply."""
+    v = session.get(Volume, vid)
+    if v is None:
+        raise HTTPException(404, "volume not found")
+    try:
+        clean = T.validate(body, partial=True)
+    except T.TypographyError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    cur = dict(v.typography or {})
+    if clean.get("preset") and not (set(clean) & set(T.FONT_KEYS)):
+        for k in T.FONT_KEYS:
+            cur.pop(k, None)
+    for k, val in clean.items():
+        if val is None:
+            cur.pop(k, None)
+        else:
+            cur[k] = val
+    v.typography = cur
+    session.commit()
+    return get_volume_typography(vid, session)
+
+
+@app.get("/api/typography/presets")
+def typography_presets() -> dict[str, Any]:
+    return {"presets": T.presets_json(), "sizes": T.SIZES, "default": T.DEFAULT_SETTING, "colour_modes": list(T.COLOUR_MODES), "states": list(T.STATES),
+            "state_colours": {st: {"box": colour.STATE_BOX[st], "text": colour.STATE_TEXT[st], "border": colour.STATE_ACCENT[st]} for st in T.STATES}}
+
+
+@app.get("/api/fonts")
+def get_fonts() -> list[dict[str, Any]]:
+    return T.catalog_json()
+
+
+@app.get("/api/fonts/{name}", include_in_schema=False)
+def get_font_file(name: str) -> Response:
+    path = T.font_file(name)
+    if path is None:
+        raise HTTPException(404, "font not found")
+    return FileResponse(path, media_type="font/ttf", headers={"Cache-Control": "public, max-age=31536000, immutable", "Access-Control-Allow-Origin": "*"})
 
 
 @app.get("/api/canvases")
@@ -617,6 +673,7 @@ class PageIn(BaseModel):
     epigraph: str | None = None
     epigraph_hi: str | None = None
     seed: int | None = None
+    typography_override: dict[str, Any] | None = None  # partial setting over the volume's; null or {} = reset to volume
 
 
 @app.put("/api/pages/{pid}")
@@ -651,6 +708,12 @@ def put_page(pid: int, body: PageIn, session: Session = S()) -> Any:
         pg.epigraph_hi = body.epigraph_hi
     if body.seed is not None:
         pg.seed = body.seed
+    if "typography_override" in fields:
+        try:
+            ov = T.validate(body.typography_override or {})
+        except T.TypographyError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        pg.typography_override = ov or None
     if body.status is not None:
         if body.status not in ("empty", "draft", "generating", "review", "approved"):
             raise HTTPException(400, "bad status")
@@ -664,7 +727,7 @@ def put_page(pid: int, body: PageIn, session: Session = S()) -> Any:
             if pg.status == "approved":
                 pg.artifacts = {}
             pg.status = body.status
-    elif pg.status == "approved" and fields & {"canvas_override", "epigraph", "epigraph_hi"}:
+    elif pg.status == "approved" and fields & {"canvas_override", "epigraph", "epigraph_hi", "typography_override"}:
         render.write_artifacts(session, pg)
     session.commit()
     return j_page(session, pg)
@@ -766,9 +829,11 @@ class PanelIn(BaseModel):
     shape: dict[str, Any] | None = None
     locked_shape: bool | None = None
     shape_kind: str | None = None  # convenience: a fresh polygon of this kind in the current bbox
+    sfx: str | None = None
+    text_colours: dict[str, Any] | None = None  # {box, text, border} pins the callout colours; null or {"mode": "auto"} = auto
 
 
-TEXT_ONLY = {"caption_en", "caption_hi", "balloon_en", "balloon_hi", "speaker", "hi_is_draft"}
+TEXT_ONLY = {"caption_en", "caption_hi", "balloon_en", "balloon_hi", "speaker", "hi_is_draft", "sfx", "text_colours"}
 
 
 @app.put("/api/panels/{pid}")
@@ -783,9 +848,19 @@ def put_panel(pid: int, body: PanelIn, session: Session = S()) -> dict[str, Any]
         raise HTTPException(400, "bad state")
     if body.kind is not None and body.kind not in ("shard", "plate"):
         raise HTTPException(400, "bad kind")
-    for k in fields - {"shape", "shape_kind", "locked_shape"}:
+    if "text_colours" in fields:
+        tc = body.text_colours or {}
+        if tc and tc.get("mode") != "auto":
+            if not (colour.is_hex(tc.get("box")) and colour.is_hex(tc.get("text"))) or (tc.get("border") and not colour.is_hex(tc["border"])):
+                raise HTTPException(400, "text_colours needs box and text as #rrggbb (border optional)")
+            p.text_colours = {k: str(tc[k]).lower() for k in ("box", "text", "border") if tc.get(k)}
+        else:
+            p.text_colours = None
+    for k in fields - {"shape", "shape_kind", "locked_shape", "text_colours"}:
         v = getattr(body, k)
-        if k in ("beat", "image_group", "environment", "speaker"):
+        if k == "sfx":
+            p.sfx = (v or "").strip()
+        elif k in ("beat", "image_group", "environment", "speaker"):
             setattr(p, k, v or (None if k != "speaker" else None))
         elif v is not None:
             setattr(p, k, v)
@@ -814,6 +889,19 @@ class GenIn(BaseModel):
     n: int = Field(2, ge=1, le=6)
     feedback: str | None = None
     rewrite: bool = False  # true: let the prompt_writer rewrite the scene from the feedback before generating
+
+
+@app.get("/api/panels/{pid}/palette")
+def panel_palette(pid: int, session: Session = S()) -> dict[str, Any]:
+    """The selected image's palette and picker swatches (box/text/border with their contrast) for the inspector."""
+    p = _panel(session, pid)
+    path, _url = render.candidate_path(session, p)
+    pal = colour.palette(path)
+    cv = render.canvas_view(render.canvas_for_page(session, p.page))
+    paper = L._paper_hex(cv)
+    ty = render.page_typography(p.page)
+    auto = colour.smart(pal, p.state, paper=paper, ink=(cv.caption_style or {}).get("text", cv.ink))
+    return {"palette": [colour.rgb_to_hex(c) for c, _ in pal], "swatches": colour.swatches(pal, paper), "auto": auto, "colour_mode": ty.colour_mode, "pinned": p.text_colours or None}
 
 
 @app.post("/api/panels/{pid}/generate", status_code=202)
