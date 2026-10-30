@@ -91,6 +91,39 @@ PDFs land in `data/exports/` and are listed by `GET /api/exports`.
 The PDF renderer is Playwright Chromium; if it is not installed the export falls back to
 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --headless --print-to-pdf`.
 
+## Motion, QR, Links and the site
+
+*Rail → Motion* has five tabs: **Moments**, **Seedance**, **QR**, **Links**, **Site**.
+
+- **Links** (`backend/links.py`) — the single source of truth for printed short URLs `https://cycleofdharma.world/v/{code}`.
+  Default code `{volume}-{page}` (e.g. `1-9`); vanity codes allowed (lowercase a–z, 0–9, `-`). Once a link is
+  `print_locked` (set automatically when a page carrying its QR is exported with `paper: "print"`, or by hand) its code can
+  never change and it can never be deleted — only its destination (override → 302, e.g. YouTube) and `enabled`. A disabled
+  link serves a friendly coming-soon page, never a 404. CSV for the printer: `GET /api/links/export.csv`.
+- **QR** (`engine/qr.py`, `backend/qr_api.py`) — segno; square / rounded / dots modules; EC H; quiet zone ≥ 4; centre
+  emblem none / chakra / lotus / ॐ (typeset from Tiro Devanagari) / uploaded PNG or SVG, ≤ 15 % of the area; EN/HI label +
+  the short URL; ≥ 20 mm. **Decode test**: rasterised at the printed size on the parchment at 300 and 150 dpi and read back
+  with zxing-cpp (a runtime dependency — it ships macOS arm64 wheels). A QR that does not read back to the exact URL cannot
+  be placed, approved or published. Exports SVG / PNG 600 dpi / PDF. On a page the QR is an element `{qr_id, x_mm, y_mm,
+  w_mm}` placed in free parchment (lower outer corner preferred), movable in *Pages → Marginalia (M)*, printed in print mode.
+- **Moments** (`backend/motion.py`, `engine/motion/`) — a page with a 30-second film: Ken Burns shots from the approved
+  panels (eased push / pull / pan / orbit / crane / breathing, and a two-layer parallax), or Seedance takes; 1.5 s title
+  card on the parchment, 12-frame crossfades, burned EN/HI captions (HarfBuzz-shaped, so Devanagari is exact on any Mac),
+  a 2 s end card with the short URL, exactly 30 s, H.264 + AAC at ~3.5 Mbps (each file < 20 MB), 16:9 and 9:16, EN and
+  HI, a poster. Narration with ElevenLabs when `ELEVENLABS_API_KEY` is set; optional music ducked −14 dB under it. ffmpeg
+  is imageio-ffmpeg's static binary (bundled in the app). `GET /api/motion/health` checks ffmpeg and the QR decoder.
+- **Seedance** (`engine/motion/providers.py`) — image-to-video from a panel's selected image or an uploaded still, via
+  fal.ai (`FAL_KEY`) or BytePlus ModelArk (`BYTEPLUS_API_KEY`); the prompt writer role writes the motion prompt (camera
+  move + "keep the locked characters' faces and attire exactly; no text"); cost estimate before every run; every take kept
+  and costed in the ledger; compare, then *Send to moment*. Without a key a run is a dry run (a placeholder clip).
+- **Site** — the public site is the Next.js app in `web/` (Vercel deploys it from git; see `web/README.md`). The studio
+  publishes its content — `manifest.json` (schema `web/lib/manifest.schema.json`) and the media — to Vercel Blob
+  (`BLOB_READ_WRITE_TOKEN`), then calls the site's `/api/revalidate` (`REVALIDATE_SECRET`). *Preview site locally* renders
+  the same manifest to `/site-preview/`; *Export site .zip* is an offline backup.
+
+Demo: `scripts/motion_demo.py` (pages 9 and 6 of Chapter 1 → moments, QRs placed, site built, screenshots in
+`docs/screens/`, films and posters in `docs/demo/`).
+
 ## Tests
 
 ```bash

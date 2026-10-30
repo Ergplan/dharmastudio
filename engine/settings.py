@@ -8,7 +8,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     gemini_api_key: str | None = None
     topaz_api_key: str | None = None
+    # motion, voice and publishing (keys follow each provider's own env names)
+    fal_api_key: str | None = Field(default=None, validation_alias=AliasChoices("FAL_KEY", "FAL_API_KEY"))
+    byteplus_api_key: str | None = Field(default=None, validation_alias=AliasChoices("BYTEPLUS_API_KEY", "ARK_API_KEY"))
+    elevenlabs_api_key: str | None = Field(default=None, validation_alias=AliasChoices("ELEVENLABS_API_KEY"))
+    blob_read_write_token: str | None = Field(default=None, validation_alias=AliasChoices("BLOB_READ_WRITE_TOKEN"))
+    revalidate_secret: str | None = Field(default=None, validation_alias=AliasChoices("REVALIDATE_SECRET"))
+    site_url: str = Field(default="https://cycleofdharma.world", validation_alias=AliasChoices("SITE_URL"))
+    # Seedance model ids (they change; override in .env)
+    seedance_fal_model: str | None = Field(default=None, validation_alias=AliasChoices("SEEDANCE_FAL_MODEL"))
+    seedance_byteplus_model: str | None = Field(default=None, validation_alias=AliasChoices("SEEDANCE_BYTEPLUS_MODEL"))
 
     topaz_model: str = "Wonder 3.5"
     gemini_image_model: str = "gemini-nano-banana-2.1"
@@ -64,6 +74,11 @@ class Settings(BaseSettings):
             "gemini": bool(self.gemini_api_key),
             "topaz": bool(self.topaz_api_key),
         }
+
+    def motion_key_status(self) -> dict[str, bool]:
+        """Motion / publishing keys — booleans only."""
+        return {"fal": bool(self.fal_api_key), "byteplus": bool(self.byteplus_api_key), "elevenlabs": bool(self.elevenlabs_api_key),
+                "blob": bool(self.blob_read_write_token), "revalidate": bool(self.revalidate_secret)}
 
     def resolve_data_dir(self) -> Path:
         d = self.data_dir if self.data_dir.is_absolute() else REPO_ROOT / self.data_dir
