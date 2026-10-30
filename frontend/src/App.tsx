@@ -8,8 +8,10 @@ import CanvasScreen from './screens/Canvas'
 import TypographyScreen from './screens/Typography'
 import ScriptScreen from './screens/Script'
 import PagesScreen from './screens/Pages'
+import DirectorScreen from './screens/Director'
 import SilhouettesScreen from './screens/Silhouettes'
 import ExportScreen from './screens/Export'
+import MotionScreen from './screens/Motion'
 
 export default function App() {
   const nav = useNavigate()
@@ -18,7 +20,7 @@ export default function App() {
     const h = (e: KeyboardEvent) => {
       if (!e.altKey || e.ctrlKey || e.metaKey) return
       const i = Number(e.key) - 1
-      const routes = ['/project', '/characters', '/canvas', '/typography', '/script', '/pages', '/silhouettes', '/export']
+      const routes = ['/project', '/characters', '/canvas', '/typography', '/script', '/pages', '/director', '/silhouettes', '/export', '/motion']
       if (i >= 0 && i < routes.length) { e.preventDefault(); nav(routes[i]) }
     }
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h)
@@ -39,8 +41,11 @@ export default function App() {
             <Route path="/typography" element={<TypographyScreen />} />
             <Route path="/script" element={<ScriptScreen />} />
             <Route path="/pages" element={<PagesScreen />} />
+            <Route path="/director" element={<DirectorScreen />} />
             <Route path="/silhouettes" element={<SilhouettesScreen />} />
             <Route path="/export" element={<ExportScreen />} />
+            <Route path="/motion" element={<Navigate to="/motion/moments" replace />} />
+            <Route path="/motion/:tab" element={<MotionScreen />} />
             <Route path="*" element={<Navigate to="/project" replace />} />
           </Routes>
         </main>

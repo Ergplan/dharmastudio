@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { NavLink, useParams, useSearchParams } from 'react-router-dom'
 import { Film, Play, Check, Globe, Upload, Trash2, GripVertical, Plus, QrCode, Link2, Clapperboard, Download, KeyRound, ExternalLink, Copy, Music } from 'lucide-react'
 import { usePages, useChapters } from '@/api/hooks'
 import { mediaUrl } from '@/api/client'
@@ -13,6 +13,7 @@ import { cx, Field, JobProgress, Empty, Spinner, StatusDot } from '@/components/
 import { useToasts } from '@/store/toasts'
 import { useQueryClient } from '@tanstack/react-query'
 import QRBuilder from './QRBuilder'
+import { KeysModal } from './Project'
 import LinksScreen from './Links'
 import SeedanceScreen from './Seedance'
 
@@ -335,12 +336,13 @@ function SiteTab() {
   const [siteUrl, setSiteUrl] = useState('')
   const [mediaBase, setMediaBase] = useState('')
   const [shown, setShown] = useState<string | null>(null)
+  const [keys, setKeys] = useState(false)
   useEffect(() => { if (s) { setSiteUrl(s.site_url); setMediaBase(s.media_base ?? '') } }, [s?.site_url, s?.media_base]) // eslint-disable-line react-hooks/exhaustive-deps
-  const nav = useNavigate()
   const done = useMemo(() => new Set<string>([...(s?.blob_token ? ['blob'] : []), ...(s?.manifest_url ? ['publish'] : [])]), [s])
   if (!s) return <Spinner />
   return (
     <div className="h-full overflow-auto p-4 grid grid-cols-[1fr_24rem] gap-4 items-start">
+      {keys && <KeysModal onClose={() => setKeys(false)} />}
       <div className="flex flex-col gap-4">
         <div className="card">
           <div className="panel-h justify-between"><span>cycleofdharma.world</span><span className="text-ink-500 font-normal">Next.js in web/ · Vercel deploys from git · content from the studio</span></div>
@@ -366,7 +368,7 @@ function SiteTab() {
               <button className="btn btn-primary" onClick={() => save.mutate({ site_url: siteUrl, media_base: mediaBase })}>Save</button>
               <span className={cx('chip', s.blob_token ? 'border-emerald-500/50 text-emerald-300' : 'border-amber-500/50 text-amber-300')}>BLOB_READ_WRITE_TOKEN {s.blob_token ? 'set' : 'missing'}</span>
               <span className={cx('chip', s.revalidate_secret ? 'border-emerald-500/50 text-emerald-300' : 'border-amber-500/50 text-amber-300')}>REVALIDATE_SECRET {s.revalidate_secret ? 'set' : 'missing'}</span>
-              <button className="btn btn-sm" onClick={() => nav('/project?keys=1')}><KeyRound size={11} />Set keys…</button>
+              <button className="btn btn-sm" onClick={() => setKeys(true)}><KeyRound size={11} />Set keys…</button>
               <button className="btn btn-sm" onClick={() => secret.mutate(undefined, { onSuccess: r => setShown(r.secret) })}>Generate revalidate secret</button>
             </div>
             {shown && <div className="col-span-2 rounded border border-gold-500/50 bg-gold-500/10 p-2"><div className="text-gold-300 mb-1">Shown once — paste into Vercel → Settings → Environment Variables as REVALIDATE_SECRET</div><div className="flex gap-2 items-center"><code className="font-mono text-2xs break-all flex-1">{shown}</code><button className="btn btn-sm btn-icon" onClick={() => navigator.clipboard.writeText(shown)}><Copy size={11} /></button></div></div>}

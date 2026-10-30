@@ -252,12 +252,12 @@ function PrefillStep({ onNext }: { onNext: () => void }) {
 }
 
 
-function KeysModal({ onClose }: { onClose: () => void }) {
+export function KeysModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
-  const [vals, setVals] = useState<Record<string, string>>({ anthropic: '', openai: '', gemini: '', topaz: '' })
+  const [vals, setVals] = useState<Record<string, string>>({ anthropic: '', openai: '', gemini: '', topaz: '', fal: '', byteplus: '', elevenlabs: '', blob: '' })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
-  const labels: Record<string, string> = { anthropic: 'Anthropic (Claude)', openai: 'OpenAI (Sunburst, GPT)', gemini: 'Google Gemini', topaz: 'Topaz Labs' }
+  const labels: Record<string, string> = { anthropic: 'Anthropic (Claude)', openai: 'OpenAI (Sunburst, GPT)', gemini: 'Google Gemini', topaz: 'Topaz Labs', fal: 'fal.ai — Seedance (FAL_KEY)', byteplus: 'BytePlus ModelArk — Seedance', elevenlabs: 'ElevenLabs — narration', blob: 'Vercel Blob read-write token (publishing)' }
   const save = async () => {
     setBusy(true)
     const body: Record<string, string> = {}

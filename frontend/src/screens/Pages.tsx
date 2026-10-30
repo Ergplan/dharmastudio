@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Scissors, Crosshair, Feather, Check, Undo2, Sparkles, ExternalLink, Clapperboard, ShieldAlert, FileCheck2 } from 'lucide-react'
 import { useChapters, usePages, useRender, useGate, useCharacters, useCanvases, useSavePage, useRecut, useSilhouettes, useApiMutation, type JobResp } from '@/api/hooks'
 import { api, openRenderInNewTab } from '@/api/client'
@@ -12,12 +13,14 @@ import { MarginaliaDrawer } from '@/components/pages/MarginaliaDrawer'
 import { PanelInspector } from '@/components/pages/PanelInspector'
 import { DirectorModal } from '@/components/pages/DirectorModal'
 import { TypePopover } from '@/components/pages/TypePopover'
+import { QROverlay, QRToolbarButtons } from '@/components/pages/QRTools'
 import { fitPage } from '@/lib/mm'
 import { toast } from '@/store/toasts'
 
 export default function PagesScreen() {
   const { data: chapters } = useChapters()
   const ed = useEditor()
+  const nav = useNavigate()
   useEffect(() => { if (chapters?.length && !chapters.some(c => c.id === ed.chapterId)) ed.setChapter(chapters[0].id) }, [chapters]) // eslint-disable-line react-hooks/exhaustive-deps
   const { data: pages, isLoading } = usePages(ed.chapterId, { refetchInterval: 3000 })
   const { data: chars = [] } = useCharacters()
@@ -98,8 +101,10 @@ export default function PagesScreen() {
             <select className="select h-6 w-auto text-2xs" value={ed.canvasOverride ?? page.canvas_override ?? ''} onChange={(e) => { const v = e.target.value || null; ed.setCanvasOverride(v); savePage.mutate({ id: page.id, canvas_override: v }) }} title="Canvas override for this page"><option value="">canvas: volume default</option>{canvases.map(c => <option key={c.key} value={c.key}>canvas: {c.name}</option>)}</select>
             <TypePopover page={page} />
             <div className="flex-1" />
+            <QRToolbarButtons page={page} />
             <button className="btn btn-sm" title="Open the page's standalone HTML artifact in a new tab" onClick={() => openRenderInNewTab(page.id, { lang: ed.lang, ...(ed.canvasOverride ? { canvas: ed.canvasOverride } : {}) })}><ExternalLink size={11} /> Page HTML</button>
             <button className="btn btn-sm" onClick={() => setDirector(true)} title="Make pages in one instruction (SPEC §9)"><Clapperboard size={11} /> Director</button>
+            <button className="btn btn-sm border-gold-500/50 text-gold-200" disabled={frozen} title={frozen ? 'Approved pages are frozen' : 'Plan, paint, critique and assemble this page under the master art direction'} onClick={() => nav(`/director?chapter=${page.chapter_id}&page=${page.id}`)}><Clapperboard size={11} /> Direct with Art Director</button>
             {page.status === 'approved'
               ? <button className="btn btn-sm" title="Un-approve (A)" onClick={() => savePage.mutate({ id: page.id, status: 'review' })}><Undo2 size={11} /> Unapprove</button>
               : <button className="btn btn-sm border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/10" title="Approve — freezes the page and saves its HTML artifact (A)" onClick={() => savePage.mutate({ id: page.id, status: 'approved' }, { onSuccess: () => toast('ok', `Page ${page.number} approved`, 'Artifact saved. Regenerate requires un-approving.') })}><Check size={11} /> Approve</button>}
@@ -114,7 +119,7 @@ export default function PagesScreen() {
               {(t) => ed.shardEditor
                 ? <ShardEditorOverlay panels={panels} t={t} selectedId={ed.panelId} onSelect={ed.setPanel} />
                 : ed.marginalia
-                  ? <MarginaliaOverlay page={page} panels={panels} t={t} silhouettes={sils} />
+                  ? <><MarginaliaOverlay page={page} panels={panels} t={t} silhouettes={sils} /><QROverlay page={page} t={t} /></>
                   : <PanelOverlay panels={panels} t={t} selectedId={ed.panelId} onSelect={ed.setPanel} />}
             </FittedPage>
           )}

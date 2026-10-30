@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { BookOpen, Users, Layers, Type, FileText, LayoutGrid, PenTool, Download, Activity, X, Square, Loader2, AlertTriangle, ShieldAlert, Info, Check } from 'lucide-react'
+import { BookOpen, Users, Layers, Type, FileText, LayoutGrid, Clapperboard, PenTool, Download, Film, Activity, X, Square, Loader2, AlertTriangle, ShieldAlert, Info, Check } from 'lucide-react'
 import { useActiveJobs, useProject, useCharacters, useVolumes, useChapters, usePages, useSilhouettes, useExports, useStopJob, useLedger } from '@/api/hooks'
 import { useToasts } from '@/store/toasts'
 import { cx, StatusDot, ProgressBar, jobFraction, jobIsActive } from './ui'
@@ -31,6 +31,7 @@ function useRailStatus(): Record<string, { tone: Tone; title: string }> {
     pages: { tone: jobs.some(j => j.kind === 'panel' || j.kind === 'page' || j.kind === 'batch') ? 'busy' : approved === pages.length && pages.length ? 'ok' : pages.length ? 'warn' : 'idle', title: `${approved}/${pages.length} approved` },
     silhouettes: { tone: sils.length ? 'ok' : 'idle', title: `${sils.length} in library` },
     export: { tone: jobs.some(j => j.kind === 'export') ? 'busy' : exps.length ? 'ok' : 'idle', title: `${exps.length} exports` },
+    motion: { tone: jobs.some(j => j.kind === 'motion_render' || j.kind === 'seedance' || j.kind === 'site_publish') ? 'busy' : 'idle', title: 'Moments, Seedance, QR, Links, Site' },
   }
 }
 
@@ -41,8 +42,10 @@ const NAV = [
   { to: '/typography', key: 'typography', label: 'Type', icon: Type },
   { to: '/script', key: 'script', label: 'Script', icon: FileText },
   { to: '/pages', key: 'pages', label: 'Pages', icon: LayoutGrid },
+  { to: '/director', key: 'director', label: 'Director', icon: Clapperboard },
   { to: '/silhouettes', key: 'silhouettes', label: 'Silhouettes', icon: PenTool },
   { to: '/export', key: 'export', label: 'Export', icon: Download },
+  { to: '/motion', key: 'motion', label: 'Motion', icon: Film },
 ]
 
 export function Rail() {
@@ -64,7 +67,7 @@ export function Rail() {
   )
 }
 
-const TITLES: Record<string, string> = { '/project': 'Project', '/characters': 'Characters', '/canvas': 'Canvas', '/typography': 'Typography', '/script': 'Script', '/pages': 'Pages', '/silhouettes': 'Silhouettes', '/export': 'Export' }
+const TITLES: Record<string, string> = { '/project': 'Project', '/characters': 'Characters', '/canvas': 'Canvas', '/typography': 'Typography', '/script': 'Script', '/pages': 'Pages', '/director': 'Art Director', '/silhouettes': 'Silhouettes', '/export': 'Export', '/motion': 'Motion & Links' }
 
 export function Header({ right }: { right?: ReactNode }) {
   const loc = useLocation()
