@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cycleofdharma.world/manifest.schema.json",
+  "title": "Cycle of Dharma site manifest",
+  "description": "Published by Dharma Studio (backend/site_gen.py) to Vercel Blob; read by the Next.js site (web/lib/manifest.ts). Shared contract — a studio test validates every manifest against this file.",
+  "type": "object",
+  "required": ["version", "generated_at", "site_url", "book", "links", "moments"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "generated_at": { "type": "string" },
+    "site_url": { "type": "string", "pattern": "^https?://" },
+    "media_base": { "type": ["string", "null"] },
+    "book": {
+      "type": "object",
+      "required": ["title", "author", "books"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "title_hi": { "type": "string" },
+        "author": { "type": "string" },
+        "books": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["number", "title"],
+            "additionalProperties": false,
+            "properties": {
+              "number": { "type": "integer", "minimum": 1 },
+              "title": { "type": "string" },
+              "title_hi": { "type": "string" },
+              "moments": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "code": { "$ref": "#/$defs/code" },
+          "kind": { "enum": ["moment", "chapter", "redirect", "coming_soon"] },
+          "destination": { "type": ["string", "null"] },
+          "moment": { "anyOf": [{ "$ref": "#/$defs/code" }, { "type": "null" }] },
+          "chapter": {
+            "anyOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "required": ["volume", "number", "title"],
+                "additionalProperties": false,
+                "properties": { "volume": { "type": "integer" }, "number": { "type": "integer" }, "title": { "type": "string" } }
+              }
+            ]
+          },
+          "moments": { "type": "array", "items": { "$ref": "#/$defs/code" } }
+        }
+      }
+    },
+    "moments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "title_en", "title_hi", "volume", "chapter", "page", "caption_en", "caption_hi", "verse", "media", "duration_s"],
+        "additionalProperties": false,
+        "properties": {
+          "code": { "$ref": "#/$defs/code" },
+          "title_en": { "type": "string", "minLength": 1 },
+          "title_hi": { "type": "string" },
+          "volume": { "type": "integer", "minimum": 1 },
+          "chapter": { "type": "integer", "minimum": 0 },
+          "chapter_title": { "type": "string" },
+          "page": { "type": "integer", "minimum": 1 },
+          "caption_en": { "type": "string" },
+          "caption_hi": { "type": "string" },
+          "verse": {
+            "anyOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "required": ["id", "lines", "meaning"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": { "type": "string" },
+                  "source": { "type": "string" },
+                  "lines": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+                  "iast": { "type": "string" },
+                  "meaning": { "type": "string" }
+                }
+              }
+            ]
+          },
+          "media": {
+            "type": "object",
+            "required": ["en_16x9", "en_9x16", "hi_16x9", "hi_9x16", "poster"],
+            "additionalProperties": false,
+            "properties": {
+              "en_16x9": { "type": "string" },
+              "en_9x16": { "type": "string" },
+              "hi_16x9": { "type": "string" },
+              "hi_9x16": { "type": "string" },
+              "poster": { "type": "string" },
+              "poster_9x16": { "type": "string" }
+            }
+          },
+          "duration_s": { "type": "number" },
+          "published_at": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "code": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$" }
+  }
+}
