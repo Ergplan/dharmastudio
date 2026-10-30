@@ -50,7 +50,17 @@ export function PanelInspector({ panel, page, chars, gateBlocked, provider, setP
         <div>
           <div className="label mb-1">Characters</div>
           <div className="flex flex-wrap gap-1">
-            {chars.map(c => <Chip key={c.id} on={panel.characters.includes(c.form_key)} onClick={() => toggleChar(c.form_key)} title={c.locked ? 'locked' : 'unlocked — blocks generation'}><span className={cx('w-1.5 h-1.5 rounded-full', c.locked ? 'bg-emerald-400' : 'bg-amber-400')} />{c.name}</Chip>)}
+            {/* chips: the forms already on this panel, plus one "base" chip per character; other forms via the picker */}
+            {chars.filter(c => panel.characters.includes(c.form_key) || chars.find(d => d.name === c.name) === c).map(c => (
+              <Chip key={c.id} on={panel.characters.includes(c.form_key)} onClick={() => toggleChar(c.form_key)} title={(c.locked ? 'locked' : 'unlocked — blocks generation') + ' · ' + c.form_key}>
+                <span className={cx('w-1.5 h-1.5 rounded-full', c.locked ? 'bg-emerald-400' : 'bg-amber-400')} />
+                {c.name}{c.form_key.includes('/') ? <span className="opacity-60">/{c.form_key.split('/')[1]}</span> : null}
+              </Chip>
+            ))}
+            <select className="bg-transparent text-xs border border-neutral-700 rounded px-1 py-0.5" value="" onChange={e => e.target.value && toggleChar(e.target.value)}>
+              <option value="">+ form…</option>
+              {chars.filter(c => !panel.characters.includes(c.form_key)).map(c => <option key={c.id} value={c.form_key}>{c.name} · {c.form_key}</option>)}
+            </select>
             {panel.characters.filter(f => !chars.some(c => c.form_key === f)).map(f => <Chip key={f} on onClick={() => toggleChar(f)}>{f}</Chip>)}
           </div>
         </div>

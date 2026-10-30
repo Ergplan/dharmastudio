@@ -5,13 +5,34 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-PYTHON="${PYTHON:-python3}"
-if ! "$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
-  echo "python3 >= 3.11 required (found: $($PYTHON --version 2>&1)). brew install python@3.13"; exit 1
-fi
+# Pick a Python that can build a working venv. Prefer 3.13/3.12 (Homebrew's 3.14 can fail at ensurepip).
+make_venv() {
+  local py="$1"
+  command -v "$py" >/dev/null 2>&1 || return 1
+  "$py" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null || return 1
+  rm -rf .venv
+  if "$py" -m venv .venv 2>/dev/null && [ -x .venv/bin/pip ]; then return 0; fi
+  # ensurepip failed: build the venv without pip and bootstrap pip from PyPI
+  rm -rf .venv
+  "$py" -m venv --without-pip .venv 2>/dev/null || return 1
+  curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py && .venv/bin/python /tmp/get-pip.py -q || { rm -rf .venv; return 1; }
+  [ -x .venv/bin/pip ]
+}
 
 echo "== venv"
-[ -d .venv ] || "$PYTHON" -m venv .venv
+if [ -x .venv/bin/pip ] && .venv/bin/python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+  echo "using existing .venv ($(.venv/bin/python --version))"
+else
+  ok=""
+  for py in ${PYTHON:-} python3.13 python3.12 python3.11 /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 python3; do
+    [ -n "$py" ] || continue
+    if make_venv "$py"; then ok="$py"; break; fi
+  done
+  if [ -z "$ok" ]; then
+    echo "Could not create a Python virtualenv. Run: brew install python@3.13   then ./install_mac.sh again"; exit 1
+  fi
+  echo "venv created with $ok ($(.venv/bin/python --version))"
+fi
 .venv/bin/pip install --upgrade pip >/dev/null
 echo "== python deps"
 .venv/bin/pip install -e ".[dev]"
