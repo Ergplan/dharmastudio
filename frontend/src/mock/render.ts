@@ -1,5 +1,6 @@
 // Mock page renderer: the same kind of standalone HTML the engine's layout.py produces (176 x 266 mm, bleed included).
-import type { Page, Panel, Canvas, Silhouette, TextState } from '@/api/types'
+import type { Page, Panel, Canvas, Silhouette, TextState, ResolvedTypography } from '@/api/types'
+import { fontFaceCss } from './typography'
 import { PAGE_W, PAGE_H, BLEED, bbox } from '@/lib/mm'
 
 const STATE_STYLE: Record<TextState, { box: string; text: string; border: string; glow?: string }> = {
@@ -13,7 +14,10 @@ const STATE_STYLE: Record<TextState, { box: string; text: string; border: string
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-export function renderPageHtml(page: Page, panels: Panel[], canvas: Canvas, silhouettes: Silhouette[], lang: 'en' | 'hi' = 'en', chapterTitle = ''): string {
+export function renderPageHtml(page: Page, panels: Panel[], canvas: Canvas, silhouettes: Silhouette[], lang: 'en' | 'hi' = 'en', chapterTitle = '', ty?: ResolvedTypography): string {
+  const k = ty?.scale.size ?? 1.2
+  const fam = (key: 'title' | 'narration' | 'dialogue', fb: string) => { const f = ty?.fonts[(lang === 'hi' ? `hi_${key}_font` : `${key}_font`) as 'title_font']; return f ? `'${f.family}',${fb}` : fb }
+  const used = ty ? [ty.fonts[lang === 'hi' ? 'hi_title_font' : 'title_font'].family, ty.fonts[lang === 'hi' ? 'hi_narration_font' : 'narration_font'].family, ty.fonts[lang === 'hi' ? 'hi_dialogue_font' : 'dialogue_font'].family] : []
   const paper = canvas.paper_texture
   const ink = canvas.ink
   const gutter = canvas.gutter
@@ -48,15 +52,16 @@ export function renderPageHtml(page: Page, panels: Panel[], canvas: Canvas, silh
     const st = STATE_STYLE[p.state]
     const caption = lang === 'hi' ? p.caption_hi || p.caption_en : p.caption_en
     const balloon = lang === 'hi' ? p.balloon_hi || p.balloon_en : p.balloon_en
-    const fam = lang === 'hi' ? "'Noto Serif Devanagari','Mukta',serif" : "Georgia,'Times New Roman',serif"
-    const size = lang === 'hi' ? '2.75mm' : '2.6mm'
+    const famN = fam('narration', lang === 'hi' ? "'Noto Serif Devanagari',serif" : 'Georgia,serif')
+    const famD = fam('dialogue', lang === 'hi' ? "'Mukta',sans-serif" : 'Helvetica,Arial,sans-serif')
+    const size = `${((lang === 'hi' ? 3.05 : 2.9) * k * 1.1667).toFixed(2)}mm`
     if (caption) {
-      const cw = Math.min(70, Math.max(34, b.w * 0.55))
-      caps.push(`<div class="cap" style="left:${(b.x0 + 3).toFixed(1)}mm;bottom:${(PAGE_H - Math.min(b.y1, PAGE_H) + 3).toFixed(1)}mm;width:${cw.toFixed(1)}mm;background:${st.box};color:${st.text};border:${st.border};font-family:${fam};font-size:${size};${st.glow ?? ''}">${esc(caption)}</div>`)
+      const cw = Math.min(110, Math.max(46, b.w * 0.75))
+      caps.push(`<div class="cap" style="left:${(b.x0 + 3).toFixed(1)}mm;bottom:${(PAGE_H - Math.min(b.y1, PAGE_H) + 3).toFixed(1)}mm;width:${cw.toFixed(1)}mm;background:${st.box};color:${st.text};border:${st.border};border-radius:1.6mm;padding:3.2mm 3.4mm;font-family:${famN};font-size:${size};${st.glow ?? ''}">${esc(caption)}</div>`)
     }
     if (balloon) {
       const bw = Math.min(56, Math.max(30, b.w * 0.45))
-      caps.push(`<div class="bal" style="right:${(PAGE_W - Math.min(b.x1, PAGE_W) + 3).toFixed(1)}mm;top:${(Math.max(b.y0, 0) + 3).toFixed(1)}mm;width:${bw.toFixed(1)}mm;font-family:${fam};${p.state === 'ego' ? 'background:#0b0b0d;color:#b3261e;border-color:#b3261e;' : ''}">${p.speaker ? `<span class="spk">${esc(p.speaker)}</span>` : ''}${esc(balloon)}</div>`)
+      caps.push(`<div class="bal" style="right:${(PAGE_W - Math.min(b.x1, PAGE_W) + 3).toFixed(1)}mm;top:${(Math.max(b.y0, 0) + 3).toFixed(1)}mm;width:${bw.toFixed(1)}mm;font-family:${famD};font-size:${(2.7 * k * 1.1667).toFixed(2)}mm;${p.state === 'ego' ? 'background:#0b0b0d;color:#b3261e;border-color:#b3261e;' : ''}">${p.speaker ? `<span class="spk">${esc(p.speaker)}</span>` : ''}${esc(balloon)}</div>`)
     }
   })
 
@@ -75,6 +80,7 @@ export function renderPageHtml(page: Page, panels: Panel[], canvas: Canvas, silh
   return `<!doctype html><html><head><meta charset="utf-8"><title>Page ${page.number}</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@400;600&display=swap" rel="stylesheet">
 <style>
+${fontFaceCss(used)}
 @page{size:${PAGE_W + 2 * BLEED}mm ${PAGE_H + 2 * BLEED}mm;margin:0}
 html,body{margin:0;padding:0;background:transparent}
 .page{position:relative;width:${PAGE_W + 2 * BLEED}mm;height:${PAGE_H + 2 * BLEED}mm;overflow:hidden;background:${paper};color:${ink}}
@@ -90,7 +96,7 @@ svg.art{position:absolute;left:0;top:0;width:${PAGE_W + 2 * BLEED}mm;height:${PA
 .spk{display:block;font-size:2mm;letter-spacing:0.3mm;text-transform:uppercase;opacity:.7;margin-bottom:.6mm}
 .folio{position:absolute;bottom:2.5mm;right:4mm;color:${ink};font:2.4mm Georgia,serif;opacity:.8}
 .marg{position:absolute;pointer-events:none}
-.title{position:absolute;left:12mm;top:6mm;color:${ink};font-family:Georgia,serif}
+.title{position:absolute;left:12mm;top:6mm;color:${ink};font-family:${fam('title', 'Georgia,serif')}}
 .t1{font-size:7.2mm;line-height:1;letter-spacing:.2mm}.t2{font-size:2.6mm;line-height:1.15;margin-top:1.4mm;letter-spacing:.2mm}.t3{font-size:2.6mm;margin-top:1.4mm;font-style:italic;color:#b3261e}
 .chap{position:absolute;left:92mm;top:6mm;font:2.8mm Georgia,serif;letter-spacing:.3mm;color:${ink}}.chap span{font-size:4.2mm}
 .rose{position:absolute;left:6mm;top:5mm}

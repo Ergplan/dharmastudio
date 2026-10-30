@@ -1,0 +1,1153 @@
+{
+ "fonts": [
+  {
+   "id": "cinzel",
+   "family": "Cinzel",
+   "script": "latin",
+   "roles": [
+    "title"
+   ],
+   "note": "Cinzel — carved Roman capitals, for titles",
+   "files": {
+    "regular": "library/Cinzelwght.ttf"
+   },
+   "faces": [
+    {
+     "file": "Cinzelwght.ttf",
+     "url": "/api/fonts/Cinzelwght.ttf",
+     "weight": "400 900",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 600,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-cinzel.txt"
+  },
+  {
+   "id": "cinzel-decorative",
+   "family": "Cinzel Decorative",
+   "script": "latin",
+   "roles": [
+    "title"
+   ],
+   "note": "Cinzel Decorative — Roman capitals with flourished swashes, for illuminated titles",
+   "files": {
+    "bold": "library/CinzelDecorative-Bold.ttf",
+    "regular": "library/CinzelDecorative-Bold.ttf"
+   },
+   "faces": [
+    {
+     "file": "CinzelDecorative-Bold.ttf",
+     "url": "/api/fonts/CinzelDecorative-Bold.ttf",
+     "weight": "700",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 700,
+   "title_weight": 700,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-cinzeldecorative.txt"
+  },
+  {
+   "id": "uncial-antiqua",
+   "family": "Uncial Antiqua",
+   "script": "latin",
+   "roles": [
+    "title",
+    "sfx"
+   ],
+   "note": "Uncial Antiqua — insular uncials of the early scriptoria, for chronicle titles",
+   "files": {
+    "regular": "library/UncialAntiqua-Regular.ttf"
+   },
+   "faces": [
+    {
+     "file": "UncialAntiqua-Regular.ttf",
+     "url": "/api/fonts/UncialAntiqua-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-uncialantiqua.txt"
+  },
+  {
+   "id": "medievalsharp",
+   "family": "MedievalSharp",
+   "script": "latin",
+   "roles": [
+    "title",
+    "sfx"
+   ],
+   "note": "MedievalSharp — a broad-nib gothic hand, for headings and old-world sound effects",
+   "files": {
+    "regular": "library/MedievalSharp.ttf"
+   },
+   "faces": [
+    {
+     "file": "MedievalSharp.ttf",
+     "url": "/api/fonts/MedievalSharp.ttf",
+     "weight": "400",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-medievalsharp.txt"
+  },
+  {
+   "id": "marcellus",
+   "family": "Marcellus",
+   "script": "latin",
+   "roles": [
+    "title",
+    "dialogue"
+   ],
+   "note": "Marcellus — flared Trajan-like letters, clean titles and calm speech",
+   "files": {
+    "regular": "library/Marcellus-Regular.ttf"
+   },
+   "faces": [
+    {
+     "file": "Marcellus-Regular.ttf",
+     "url": "/api/fonts/Marcellus-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-marcellus.txt"
+  },
+  {
+   "id": "bangers",
+   "family": "Bangers",
+   "script": "latin",
+   "roles": [
+    "sfx",
+    "title"
+   ],
+   "note": "Bangers — comic SFX, loud and hand-lettered",
+   "files": {
+    "regular": "library/Bangers-Regular.ttf"
+   },
+   "faces": [
+    {
+     "file": "Bangers-Regular.ttf",
+     "url": "/api/fonts/Bangers-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-bangers.txt"
+  },
+  {
+   "id": "teko",
+   "family": "Teko",
+   "script": "both",
+   "roles": [
+    "sfx",
+    "title"
+   ],
+   "note": "Teko — tall condensed caps (Latin and Devanagari), for impact sound effects",
+   "files": {
+    "regular": "library/Tekowght.ttf"
+   },
+   "faces": [
+    {
+     "file": "Tekowght.ttf",
+     "url": "/api/fonts/Tekowght.ttf",
+     "weight": "300 700",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 500,
+   "title_weight": 600,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-teko.txt"
+  },
+  {
+   "id": "im-fell-english",
+   "family": "IM FELL English",
+   "script": "latin",
+   "roles": [
+    "narration"
+   ],
+   "note": "IM Fell English — 17th-century press, manuscript narration",
+   "files": {
+    "regular": "library/IMFeENrm28P.ttf",
+    "italic": "library/IMFeENit28P.ttf"
+   },
+   "faces": [
+    {
+     "file": "IMFeENrm28P.ttf",
+     "url": "/api/fonts/IMFeENrm28P.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "IMFeENit28P.ttf",
+     "url": "/api/fonts/IMFeENit28P.ttf",
+     "weight": "400",
+     "style": "italic"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-imfellenglish.txt"
+  },
+  {
+   "id": "cormorant-garamond",
+   "family": "Cormorant Garamond",
+   "script": "latin",
+   "roles": [
+    "narration",
+    "title"
+   ],
+   "note": "Cormorant Garamond — high-contrast display Garamond, cinematic narration",
+   "files": {
+    "regular": "library/CormorantGaramondwght.ttf",
+    "italic": "library/CormorantGaramond-Italicwght.ttf"
+   },
+   "faces": [
+    {
+     "file": "CormorantGaramondwght.ttf",
+     "url": "/api/fonts/CormorantGaramondwght.ttf",
+     "weight": "300 700",
+     "style": "normal"
+    },
+    {
+     "file": "CormorantGaramond-Italicwght.ttf",
+     "url": "/api/fonts/CormorantGaramond-Italicwght.ttf",
+     "weight": "300 700",
+     "style": "italic"
+    }
+   ],
+   "text_weight": 500,
+   "title_weight": 600,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-cormorantgaramond.txt"
+  },
+  {
+   "id": "eb-garamond",
+   "family": "EB Garamond",
+   "script": "latin",
+   "roles": [
+    "narration",
+    "dialogue"
+   ],
+   "note": "EB Garamond — the classic book Garamond, for long narration",
+   "files": {
+    "regular": "library/EBGaramondwght.ttf",
+    "italic": "library/EBGaramond-Italicwght.ttf"
+   },
+   "faces": [
+    {
+     "file": "EBGaramondwght.ttf",
+     "url": "/api/fonts/EBGaramondwght.ttf",
+     "weight": "400 800",
+     "style": "normal"
+    },
+    {
+     "file": "EBGaramond-Italicwght.ttf",
+     "url": "/api/fonts/EBGaramond-Italicwght.ttf",
+     "weight": "400 800",
+     "style": "italic"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-ebgaramond.txt"
+  },
+  {
+   "id": "spectral",
+   "family": "Spectral",
+   "script": "latin",
+   "roles": [
+    "narration",
+    "dialogue"
+   ],
+   "note": "Spectral — a screen-sharp book serif, clear dialogue and narration",
+   "files": {
+    "regular": "library/Spectral-Regular.ttf",
+    "italic": "library/Spectral-Italic.ttf",
+    "bold": "library/Spectral-SemiBold.ttf"
+   },
+   "faces": [
+    {
+     "file": "Spectral-Regular.ttf",
+     "url": "/api/fonts/Spectral-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "Spectral-Italic.ttf",
+     "url": "/api/fonts/Spectral-Italic.ttf",
+     "weight": "400",
+     "style": "italic"
+    },
+    {
+     "file": "Spectral-SemiBold.ttf",
+     "url": "/api/fonts/Spectral-SemiBold.ttf",
+     "weight": "600",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-spectral.txt"
+  },
+  {
+   "id": "philosopher",
+   "family": "Philosopher",
+   "script": "latin",
+   "roles": [
+    "dialogue",
+    "title"
+   ],
+   "note": "Philosopher — a warm humanist hybrid, for speech",
+   "files": {
+    "regular": "library/Philosopher-Regular.ttf",
+    "bold": "library/Philosopher-Bold.ttf"
+   },
+   "faces": [
+    {
+     "file": "Philosopher-Regular.ttf",
+     "url": "/api/fonts/Philosopher-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "Philosopher-Bold.ttf",
+     "url": "/api/fonts/Philosopher-Bold.ttf",
+     "weight": "700",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    }
+   },
+   "licence": "OFL-philosopher.txt"
+  },
+  {
+   "id": "yatra-one",
+   "family": "Yatra One",
+   "script": "both",
+   "roles": [
+    "title",
+    "sfx"
+   ],
+   "note": "Yatra One — bold Devanagari display, painted-sign energy",
+   "files": {
+    "regular": "library/YatraOne-Regular.ttf"
+   },
+   "faces": [
+    {
+     "file": "YatraOne-Regular.ttf",
+     "url": "/api/fonts/YatraOne-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-yatraone.txt"
+  },
+  {
+   "id": "rozha-one",
+   "family": "Rozha One",
+   "script": "both",
+   "roles": [
+    "title"
+   ],
+   "note": "Rozha One — heavy high-contrast Devanagari, cinema-poster titles",
+   "files": {
+    "regular": "library/RozhaOne-Regular.ttf"
+   },
+   "faces": [
+    {
+     "file": "RozhaOne-Regular.ttf",
+     "url": "/api/fonts/RozhaOne-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-rozhaone.txt"
+  },
+  {
+   "id": "amita",
+   "family": "Amita",
+   "script": "both",
+   "roles": [
+    "title",
+    "narration"
+   ],
+   "note": "Amita — calligraphic Devanagari, a reed-pen hand",
+   "files": {
+    "regular": "library/Amita-Regular.ttf",
+    "bold": "library/Amita-Bold.ttf"
+   },
+   "faces": [
+    {
+     "file": "Amita-Regular.ttf",
+     "url": "/api/fonts/Amita-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "Amita-Bold.ttf",
+     "url": "/api/fonts/Amita-Bold.ttf",
+     "weight": "700",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 700,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-amita.txt"
+  },
+  {
+   "id": "eczar",
+   "family": "Eczar",
+   "script": "both",
+   "roles": [
+    "title",
+    "narration"
+   ],
+   "note": "Eczar — sculpted Devanagari and Latin, for titles and strong narration",
+   "files": {
+    "regular": "library/Eczarwght.ttf"
+   },
+   "faces": [
+    {
+     "file": "Eczarwght.ttf",
+     "url": "/api/fonts/Eczarwght.ttf",
+     "weight": "400 800",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 600,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-eczar.txt"
+  },
+  {
+   "id": "khand",
+   "family": "Khand",
+   "script": "both",
+   "roles": [
+    "title",
+    "sfx"
+   ],
+   "note": "Khand — compact squared Devanagari, modern headings",
+   "files": {
+    "bold": "library/Khand-SemiBold.ttf",
+    "regular": "library/Khand-SemiBold.ttf"
+   },
+   "faces": [
+    {
+     "file": "Khand-SemiBold.ttf",
+     "url": "/api/fonts/Khand-SemiBold.ttf",
+     "weight": "600",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 600,
+   "title_weight": 600,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-khand.txt"
+  },
+  {
+   "id": "tiro-devanagari-hindi",
+   "family": "Tiro Devanagari Hindi",
+   "script": "both",
+   "roles": [
+    "narration",
+    "dialogue"
+   ],
+   "note": "Tiro Devanagari Hindi — classical book Hindi",
+   "files": {
+    "regular": "library/TiroDevanagariHindi-Regular.ttf",
+    "italic": "library/TiroDevanagariHindi-Italic.ttf"
+   },
+   "faces": [
+    {
+     "file": "TiroDevanagariHindi-Regular.ttf",
+     "url": "/api/fonts/TiroDevanagariHindi-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "TiroDevanagariHindi-Italic.ttf",
+     "url": "/api/fonts/TiroDevanagariHindi-Italic.ttf",
+     "weight": "400",
+     "style": "italic"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-tirodevanagarihindi.txt"
+  },
+  {
+   "id": "martel",
+   "family": "Martel",
+   "script": "both",
+   "roles": [
+    "narration",
+    "title"
+   ],
+   "note": "Martel — a sturdy Devanagari text serif, cinematic narration",
+   "files": {
+    "regular": "library/Martel-Regular.ttf",
+    "bold": "library/Martel-Bold.ttf"
+   },
+   "faces": [
+    {
+     "file": "Martel-Regular.ttf",
+     "url": "/api/fonts/Martel-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "Martel-Bold.ttf",
+     "url": "/api/fonts/Martel-Bold.ttf",
+     "weight": "700",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 700,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-martel.txt"
+  },
+  {
+   "id": "gotu",
+   "family": "Gotu",
+   "script": "both",
+   "roles": [
+    "narration",
+    "dialogue"
+   ],
+   "note": "Gotu — soft rounded Devanagari, a quiet chronicle voice",
+   "files": {
+    "regular": "library/Gotu-Regular.ttf"
+   },
+   "faces": [
+    {
+     "file": "Gotu-Regular.ttf",
+     "url": "/api/fonts/Gotu-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-gotu.txt"
+  },
+  {
+   "id": "laila",
+   "family": "Laila",
+   "script": "both",
+   "roles": [
+    "dialogue",
+    "narration"
+   ],
+   "note": "Laila — open, friendly Devanagari for speech balloons",
+   "files": {
+    "regular": "library/Laila-Regular.ttf",
+    "bold": "library/Laila-SemiBold.ttf"
+   },
+   "faces": [
+    {
+     "file": "Laila-Regular.ttf",
+     "url": "/api/fonts/Laila-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "Laila-SemiBold.ttf",
+     "url": "/api/fonts/Laila-SemiBold.ttf",
+     "weight": "600",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 600,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-laila.txt"
+  },
+  {
+   "id": "kalam",
+   "family": "Kalam",
+   "script": "both",
+   "roles": [
+    "dialogue",
+    "sfx"
+   ],
+   "note": "Kalam — handwritten Hindi notes, a personal voice",
+   "files": {
+    "regular": "library/Kalam-Regular.ttf",
+    "bold": "library/Kalam-Bold.ttf"
+   },
+   "faces": [
+    {
+     "file": "Kalam-Regular.ttf",
+     "url": "/api/fonts/Kalam-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "Kalam-Bold.ttf",
+     "url": "/api/fonts/Kalam-Bold.ttf",
+     "weight": "700",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 700,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-kalam.txt"
+  },
+  {
+   "id": "pragati-narrow",
+   "family": "Pragati Narrow",
+   "script": "both",
+   "roles": [
+    "dialogue"
+   ],
+   "note": "Pragati Narrow — condensed Devanagari sans, fits long balloons",
+   "files": {
+    "regular": "library/PragatiNarrow-Regular.ttf",
+    "bold": "library/PragatiNarrow-Bold.ttf"
+   },
+   "faces": [
+    {
+     "file": "PragatiNarrow-Regular.ttf",
+     "url": "/api/fonts/PragatiNarrow-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "PragatiNarrow-Bold.ttf",
+     "url": "/api/fonts/PragatiNarrow-Bold.ttf",
+     "weight": "700",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 700,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-pragatinarrow.txt"
+  },
+  {
+   "id": "noto-serif-devanagari",
+   "family": "Noto Serif Devanagari",
+   "script": "both",
+   "roles": [
+    "narration",
+    "title"
+   ],
+   "note": "Noto Serif Devanagari — the studio's original Hindi caption face",
+   "files": {
+    "regular": "NotoSerifDevanagari.ttf"
+   },
+   "faces": [
+    {
+     "file": "NotoSerifDevanagari.ttf",
+     "url": "/api/fonts/NotoSerifDevanagari.ttf",
+     "weight": "400 700",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 400,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-NotoSerifDevanagari.txt"
+  },
+  {
+   "id": "mukta",
+   "family": "Mukta",
+   "script": "both",
+   "roles": [
+    "dialogue",
+    "narration"
+   ],
+   "note": "Mukta — the studio's original Hindi balloon sans, plain and legible",
+   "files": {
+    "regular": "Mukta-Regular.ttf",
+    "bold": "Mukta-SemiBold.ttf"
+   },
+   "faces": [
+    {
+     "file": "Mukta-Regular.ttf",
+     "url": "/api/fonts/Mukta-Regular.ttf",
+     "weight": "400",
+     "style": "normal"
+    },
+    {
+     "file": "Mukta-SemiBold.ttf",
+     "url": "/api/fonts/Mukta-SemiBold.ttf",
+     "weight": "600",
+     "style": "normal"
+    }
+   ],
+   "text_weight": 400,
+   "title_weight": 600,
+   "preview": {
+    "latin": {
+     "title": "The Last Night of Lanka",
+     "narration": "I have carried many things across many waters.",
+     "dialogue": "Dharma protects those who protect it.",
+     "sfx": "THOOM!"
+    },
+    "devanagari": {
+     "title": "लंका की अंतिम रात",
+     "narration": "मैंने अनेक जल पार करके अनेक चीज़ें ढोई हैं।",
+     "dialogue": "धर्मो रक्षति रक्षितः।",
+     "sfx": "धड़ाम!"
+    }
+   },
+   "licence": "OFL-Mukta.txt"
+  }
+ ],
+ "presets": {
+  "presets": [
+   {
+    "id": "illuminated-manuscript",
+    "name": "Illuminated manuscript",
+    "note": "Flourished capitals over a 17th-century press, a sharp book serif for speech.",
+    "fonts": {
+     "title_font": "cinzel-decorative",
+     "narration_font": "im-fell-english",
+     "dialogue_font": "spectral",
+     "sfx_font": "medievalsharp",
+     "hi_title_font": "yatra-one",
+     "hi_narration_font": "tiro-devanagari-hindi",
+     "hi_dialogue_font": "laila"
+    },
+    "families": {
+     "title_font": "Cinzel Decorative",
+     "narration_font": "IM FELL English",
+     "dialogue_font": "Spectral",
+     "sfx_font": "MedievalSharp",
+     "hi_title_font": "Yatra One",
+     "hi_narration_font": "Tiro Devanagari Hindi",
+     "hi_dialogue_font": "Laila"
+    }
+   },
+   {
+    "id": "epic-cinema",
+    "name": "Epic cinema",
+    "note": "Carved Roman capitals and a high-contrast Garamond — the trailer voice.",
+    "fonts": {
+     "title_font": "cinzel",
+     "narration_font": "cormorant-garamond",
+     "dialogue_font": "marcellus",
+     "sfx_font": "bangers",
+     "hi_title_font": "rozha-one",
+     "hi_narration_font": "martel",
+     "hi_dialogue_font": "mukta"
+    },
+    "families": {
+     "title_font": "Cinzel",
+     "narration_font": "Cormorant Garamond",
+     "dialogue_font": "Marcellus",
+     "sfx_font": "Bangers",
+     "hi_title_font": "Rozha One",
+     "hi_narration_font": "Martel",
+     "hi_dialogue_font": "Mukta"
+    }
+   },
+   {
+    "id": "ancient-chronicle",
+    "name": "Ancient chronicle",
+    "note": "Insular uncials, the book Garamond, a calligraphic Devanagari hand.",
+    "fonts": {
+     "title_font": "uncial-antiqua",
+     "narration_font": "eb-garamond",
+     "dialogue_font": "philosopher",
+     "sfx_font": "medievalsharp",
+     "hi_title_font": "amita",
+     "hi_narration_font": "gotu",
+     "hi_dialogue_font": "kalam"
+    },
+    "families": {
+     "title_font": "Uncial Antiqua",
+     "narration_font": "EB Garamond",
+     "dialogue_font": "Philosopher",
+     "sfx_font": "MedievalSharp",
+     "hi_title_font": "Amita",
+     "hi_narration_font": "Gotu",
+     "hi_dialogue_font": "Kalam"
+    }
+   },
+   {
+    "id": "modern-clean",
+    "name": "Modern clean",
+    "note": "Quiet flared capitals and a crisp serif; squared Devanagari headings.",
+    "fonts": {
+     "title_font": "marcellus",
+     "narration_font": "spectral",
+     "dialogue_font": "philosopher",
+     "sfx_font": "teko",
+     "hi_title_font": "khand",
+     "hi_narration_font": "laila",
+     "hi_dialogue_font": "mukta"
+    },
+    "families": {
+     "title_font": "Marcellus",
+     "narration_font": "Spectral",
+     "dialogue_font": "Philosopher",
+     "sfx_font": "Teko",
+     "hi_title_font": "Khand",
+     "hi_narration_font": "Laila",
+     "hi_dialogue_font": "Mukta"
+    }
+   },
+   {
+    "id": "comic-house",
+    "name": "Comic house",
+    "note": "Loud comic lettering for titles and SFX over a readable book serif.",
+    "fonts": {
+     "title_font": "bangers",
+     "narration_font": "spectral",
+     "dialogue_font": "philosopher",
+     "sfx_font": "bangers",
+     "hi_title_font": "yatra-one",
+     "hi_narration_font": "eczar",
+     "hi_dialogue_font": "pragati-narrow"
+    },
+    "families": {
+     "title_font": "Bangers",
+     "narration_font": "Spectral",
+     "dialogue_font": "Philosopher",
+     "sfx_font": "Bangers",
+     "hi_title_font": "Yatra One",
+     "hi_narration_font": "Eczar",
+     "hi_dialogue_font": "Pragati Narrow"
+    }
+   }
+  ],
+  "sizes": {
+   "S": 0.9,
+   "M": 1.0,
+   "L": 1.2,
+   "XL": 1.4
+  },
+  "default": {
+   "preset": "illuminated-manuscript",
+   "size": "L",
+   "title_size": "L",
+   "line_height": null,
+   "colour_mode": "smart"
+  },
+  "colour_modes": [
+   "smart",
+   "state",
+   "custom"
+  ],
+  "states": [
+   "quiet",
+   "rising",
+   "peak",
+   "ego",
+   "knowledge",
+   "voice"
+  ],
+  "state_colours": {
+   "quiet": {
+    "box": "#efe4c9",
+    "text": "#161210",
+    "border": "#3a2d1a"
+   },
+   "rising": {
+    "box": "#4a4a4c",
+    "text": "#f2ede3",
+    "border": "#3a2d1a"
+   },
+   "peak": {
+    "box": "#0b0b0d",
+    "text": "#f2ede3",
+    "border": "#8a8580"
+   },
+   "ego": {
+    "box": "#2a0a0a",
+    "text": "#b3261e",
+    "border": "#b3261e"
+   },
+   "knowledge": {
+    "box": "#0e1a26",
+    "text": "#d4a017",
+    "border": "#d4a017"
+   },
+   "voice": {
+    "box": "#efe4c9",
+    "text": "#5a3a1a",
+    "border": "#5a3a1a"
+   }
+  }
+ }
+}

@@ -1,6 +1,8 @@
 // Mock API router for VITE_MOCK=1. Mirrors SPEC §4, §8, §9 against the in-memory fixtures.
 import * as F from './fixtures'
 import { renderPageHtml } from './render'
+import * as TY from './typography'
+import { contrast as contrastOf } from '@/lib/colour'
 import { plate, portrait, silhouette } from './images'
 import { presetPolygon, DEFAULT_EDGE } from '@/lib/shapes'
 import type { Job, Panel, Page, Candidate, BatchProgress, DirectorRequest, ExportRequest, Character, CharacterRef, ShapeKind, Beat } from '@/api/types'
@@ -31,7 +33,9 @@ const canvasForPage = (page: Page) => {
   const vol = F.volumes.find(v => v.id === ch?.volume_id)
   return F.canvases.find(c => c.id === vol?.canvas_id) ?? F.canvases[0]
 }
-const pageOut = (p: Page) => ({ ...p, panels: panelsOfPage(p.id) })
+const volumeOfPage = (p: Page) => F.volumes.find(v => v.id === F.chapters.find(c => c.id === p.chapter_id)?.volume_id)
+const pageOut = (p: Page) => ({ ...p, typography: TY.resolve(volumeOfPage(p)?.typography, p.typography_override), panels: panelsOfPage(p.id) })
+const volTypeOut = (v: (typeof F.volumes)[number]) => ({ volume_id: v.id, stored: v.typography ?? {}, typography: TY.merge(v.typography), resolved: TY.resolve(v.typography) })
 const jobOut = (j: Job) => ({ ...j })
 
 // ---------- job engine ----------
@@ -135,6 +139,17 @@ export async function mockRequest(method: string, url: string, body?: unknown): 
   if (M('GET', '/volumes')) return F.volumes
   if ((p = M('PUT', '/volumes/:id'))) { const v = F.volumes.find(x => x.id === num(p!.id)); if (!v) throw new MockHttpError(404, 'volume not found'); Object.assign(v, b); markDone('canvas'); return v }
   if (M('GET', '/canvases')) return F.canvases
+  if (M('GET', '/fonts')) return TY.fonts
+  if (M('GET', '/typography/presets')) return TY.presets
+  if ((p = M('GET', '/volumes/:id/typography'))) { const v = F.volumes.find(x => x.id === num(p!.id)); if (!v) throw new MockHttpError(404, 'volume not found'); return volTypeOut(v) }
+  if ((p = M('PUT', '/volumes/:id/typography'))) {
+    const v = F.volumes.find(x => x.id === num(p!.id)); if (!v) throw new MockHttpError(404, 'volume not found')
+    const cur: Record<string, unknown> = { ...(v.typography ?? {}) }
+    const fontKeys = ['title_font', 'narration_font', 'dialogue_font', 'sfx_font', 'hi_title_font', 'hi_narration_font', 'hi_dialogue_font']
+    if (b.preset && !Object.keys(b).some(k => fontKeys.includes(k))) for (const k of fontKeys) delete cur[k]
+    for (const [k, val] of Object.entries(b)) { if (val == null) delete cur[k]; else cur[k] = val }
+    v.typography = cur; return volTypeOut(v)
+  }
 
   // ----- characters -----
   if (M('GET', '/characters')) return F.characters
@@ -242,7 +257,7 @@ export async function mockRequest(method: string, url: string, body?: unknown): 
     if (b.status && !['empty', 'draft', 'generating', 'review', 'approved'].includes(String(b.status))) throw new MockHttpError(422, 'bad status')
     if (b.status === 'approved') pg.artifact = `data/artifacts/ch${pg.chapter_id}/page_${String(pg.number).padStart(3, '0')}.html`
     if (b.status && b.status !== 'approved' && pg.status === 'approved') pg.artifact = null
-    for (const k of ['beat', 'status', 'marginalia', 'canvas_override'] as const) if (k in b) (pg as unknown as Record<string, unknown>)[k] = b[k]
+    for (const k of ['beat', 'status', 'marginalia', 'canvas_override', 'typography_override'] as const) if (k in b) (pg as unknown as Record<string, unknown>)[k] = b[k]
     return pageOut(pg)
   }
   if ((p = M('GET', '/pages/:id/render'))) {
@@ -250,7 +265,7 @@ export async function mockRequest(method: string, url: string, body?: unknown): 
     const canvas = q.get('canvas') ? F.canvasByKey(q.get('canvas')!) ?? canvasForPage(pg) : canvasForPage(pg)
     const lang = (q.get('lang') === 'hi' ? 'hi' : 'en') as 'en' | 'hi'
     const ch = F.chapters.find(c => c.id === pg.chapter_id)
-    return renderPageHtml(pg, panelsOfPage(pg.id), canvas, F.silhouettes, lang, ch?.title.split('/').pop()?.trim().toUpperCase())
+    return renderPageHtml(pg, panelsOfPage(pg.id), canvas, F.silhouettes, lang, ch?.title.split('/').pop()?.trim().toUpperCase(), TY.resolve(volumeOfPage(pg)?.typography, pg.typography_override))
   }
   if ((p = M('GET', '/pages/:id/gate'))) { const names = unlockedOnPage(num(p!.id)); return { ok: names.length === 0, unlocked: names } }
   if ((p = M('POST', '/pages/:id/recut'))) {
@@ -281,9 +296,15 @@ export async function mockRequest(method: string, url: string, body?: unknown): 
     const pn = panelById(num(p!.id)); if (!pn) throw new MockHttpError(404, 'panel not found')
     const pg = pageById(pn.page_id)!
     if (pg.status === 'approved' && ('shape' in b)) throw new MockHttpError(409, 'Page is approved and frozen. Un-approve it before editing shards.')
-    for (const k of ['caption_en', 'caption_hi', 'balloon_en', 'balloon_hi', 'speaker', 'state', 'scale', 'characters', 'scene', 'shape', 'locked_shape', 'image_group', 'hi_is_draft'] as const) if (k in b) (pn as unknown as Record<string, unknown>)[k] = b[k]
+    for (const k of ['caption_en', 'caption_hi', 'balloon_en', 'balloon_hi', 'speaker', 'state', 'scale', 'characters', 'scene', 'shape', 'locked_shape', 'image_group', 'hi_is_draft', 'sfx', 'text_colours'] as const) if (k in b) (pn as unknown as Record<string, unknown>)[k] = b[k]
     if ('caption_hi' in b) pn.hi_is_draft = false
     return pn
+  }
+  if ((p = M('GET', '/panels/:id/palette'))) {
+    const pn = panelById(num(p!.id)); if (!pn) throw new MockHttpError(404, 'panel not found')
+    const swatches = [['#ece2cd', '#3a2d1a', 'rgba(107,86,62,0.7)'], ['#e9e0d2', '#2b2418', 'rgba(90,70,50,0.7)'], ['#252627', '#f2ede3', 'rgba(122,154,180,0.8)'], ['#3e1c17', '#fbd9cf', 'rgba(210,128,115,0.8)'], ['#312405', '#efc25a', 'rgba(178,145,84,0.8)'], ['#f0e6d6', '#4a3420', 'rgba(140,96,60,0.7)']]
+      .map(([box, text, border]) => ({ box, text, border, contrast: +contrastOf(box, text).toFixed(2) }))
+    return { palette: ['#1b2230', '#6b4a2a', '#c58b46', '#e9d2a6', '#0b0d12'], swatches, auto: swatches[0], colour_mode: 'smart', pinned: pn.text_colours ?? null }
   }
   if ((p = M('POST', '/panels/:id/generate'))) {
     const pn = panelById(num(p!.id)); if (!pn) throw new MockHttpError(404, 'panel not found')

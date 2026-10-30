@@ -70,7 +70,7 @@ export const models: Models = {
 }
 
 export const volumes: Volume[] = [
-  { id: 1, project_id: 1, number: 1, title: 'Book One — The Fire That Was Not Destroyed', canvas_id: 1, era_default: 'treta' },
+  { id: 1, project_id: 1, number: 1, title: 'Book One — The Fire That Was Not Destroyed', canvas_id: 1, era_default: 'treta', typography: { preset: 'illuminated-manuscript', size: 'L', title_size: 'L', colour_mode: 'smart' } },
   { id: 2, project_id: 1, number: 2, title: 'Book Two — The Work and the Fruit', canvas_id: null, era_default: 'dwapara', suggested_canvas_keys: ['iron'] },
   { id: 3, project_id: 1, number: 3, title: 'Book Three — The Machine That Remembered', canvas_id: null, era_default: 'kali', suggested_canvas_keys: ['glass'] },
 ]

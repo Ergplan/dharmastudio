@@ -274,3 +274,11 @@ def test_export_embeds_chosen_fonts(client):
             assert name in out, (lang, name, out)
         if lang == "en":
             assert "Yatra" not in out and "Laila" not in out
+
+
+def test_mock_fixture_is_current():
+    import json
+
+    from scripts.export_typography import OUT, payload
+
+    assert json.loads(OUT.read_text(encoding="utf-8")) == json.loads(json.dumps(payload(), ensure_ascii=False))
