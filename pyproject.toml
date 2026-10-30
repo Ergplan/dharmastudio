@@ -26,6 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 pdf = ["playwright>=1.45"]
 dev = ["pytest>=8"]
+desktop = ["pywebview>=5", "keyring>=25", "pyinstaller>=6.6"]
 
 [tool.setuptools]
 packages = ["backend", "engine", "engine.comic"]

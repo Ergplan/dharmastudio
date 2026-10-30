@@ -1156,6 +1156,67 @@ def director_batch(body: BatchIn, session: Session = S()) -> dict[str, Any]:
 # media and the frontend
 # ---------------------------------------------------------------------------------
 
+
+# --- keys (desktop app: macOS Keychain; source checkout: .env) -------------------------------------------
+_KEY_FIELDS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "topaz": "TOPAZ_API_KEY"}
+
+
+@app.get("/api/settings/keys")
+def get_keys() -> dict:
+    import os
+
+    return {"keys": settings.key_status(), "store": "keychain" if os.environ.get("DHARMA_DESKTOP") else ".env"}
+
+
+@app.put("/api/settings/keys")
+def put_keys(body: dict) -> dict:
+    """Set or clear keys. Values are written to the Keychain (app) or .env (source) and applied live; they are
+    never returned by any route."""
+    import os
+
+    desktop = bool(os.environ.get("DHARMA_DESKTOP"))
+    for short, env_name in _KEY_FIELDS.items():
+        if short not in body:
+            continue
+        val = (body.get(short) or "").strip() or None
+        if desktop:
+            stored = False
+            try:
+                import keyring
+
+                if val:
+                    keyring.set_password("Dharma Studio", env_name, val)
+                else:
+                    try:
+                        keyring.delete_password("Dharma Studio", env_name)
+                    except Exception:  # noqa: BLE001
+                        pass
+                stored = True
+            except Exception:  # noqa: BLE001  no Keychain available: owner-only file next to the data
+                stored = False
+            if not stored:
+                kf = db.DATA_DIR.parent / "keys.env"
+                lines = kf.read_text().splitlines() if kf.exists() else []
+                lines = [ln for ln in lines if not ln.startswith(env_name + "=")]
+                if val:
+                    lines.append(f"{env_name}={val}")
+                kf.write_text("\n".join(lines) + "\n")
+                kf.chmod(0o600)
+        else:
+            env_path = REPO_ROOT / ".env"
+            lines = env_path.read_text().splitlines() if env_path.exists() else []
+            lines = [ln for ln in lines if not ln.startswith(env_name + "=")]
+            if val:
+                lines.append(f"{env_name}={val}")
+            env_path.write_text("\n".join(lines) + "\n")
+        setattr(settings, short + "_api_key", val)
+        if val:
+            os.environ[env_name] = val
+        else:
+            os.environ.pop(env_name, None)
+    return {"keys": settings.key_status(), "store": "keychain" if desktop else ".env"}
+
+
 app.mount("/media", StaticFiles(directory=str(db.DATA_DIR)), name="media")
 
 

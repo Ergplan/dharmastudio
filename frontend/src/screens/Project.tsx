@@ -4,7 +4,8 @@ import { Upload, Check, Circle, ChevronRight, Key, RotateCcw, Sparkles, FileText
 import { useProject, useModels, useVolumes, useCanvases, useChapters, useLedger, useSaveModels, useSaveChapter, useApiMutation, qk, type JobResp } from '@/api/hooks'
 import { api } from '@/api/client'
 import { JOURNEY_STEPS, ROLES, type JourneyStep, type ModelSelection, type Role } from '@/api/types'
-import { cx, Field, JobProgress, Spinner, usd, Chip } from '@/components/ui'
+import { cx, Field, JobProgress, Spinner, usd, Chip, Modal } from '@/components/ui'
+import { useQueryClient } from '@tanstack/react-query'
 
 const STEP_LABEL: Record<JourneyStep, string> = { manuscript: 'Manuscript', models: 'Models', characters: 'Characters', canvas: 'Canvas', prefill: 'Prefill', pages: 'Pages' }
 
@@ -15,6 +16,7 @@ export default function ProjectScreen() {
   const { data: chapters = [] } = useChapters()
   const { data: ledger } = useLedger()
   const [step, setStep] = useState<JourneyStep | null>(null)
+  const [keysOpen, setKeysOpen] = useState(false)
   const reset = useApiMutation(() => api.post('/api/project/journey/reset'), [qk.project])
   if (!project) return <Spinner />
   const current = step ?? project.journey.step
@@ -88,7 +90,9 @@ export default function ProjectScreen() {
 
           <div className="col-span-5 flex flex-col gap-5">
             <section className="card">
-              <div className="panel-h"><Key size={12} /> API keys <span className="text-ink-500 font-normal">— read from .env, never shown</span></div>
+              <div className="panel-h"><Key size={12} /> API keys <span className="text-ink-500 font-normal">— stored in the macOS Keychain, never shown</span>
+                <button className="btn ml-auto" onClick={() => setKeysOpen(true)}>Set keys</button></div>
+              {keysOpen && <KeysModal onClose={() => setKeysOpen(false)} />}
               <div className="p-4 grid grid-cols-2 gap-2">
                 {(['anthropic', 'openai', 'gemini', 'topaz'] as const).map(k => (
                   <div key={k} className={cx('flex items-center justify-between rounded border px-2.5 py-2 text-xs', project.keys[k] ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5')}>
@@ -242,5 +246,41 @@ function PrefillStep({ onNext }: { onNext: () => void }) {
       <Link to="/script" className="btn btn-primary">Open Script <ChevronRight size={12} /></Link>
       <button className="btn" onClick={onNext}>Next step</button>
     </div>
+  )
+}
+
+
+function KeysModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const [vals, setVals] = useState<Record<string, string>>({ anthropic: '', openai: '', gemini: '', topaz: '' })
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const labels: Record<string, string> = { anthropic: 'Anthropic (Claude)', openai: 'OpenAI (Sunburst, GPT)', gemini: 'Google Gemini', topaz: 'Topaz Labs' }
+  const save = async () => {
+    setBusy(true)
+    const body: Record<string, string> = {}
+    for (const [k, v] of Object.entries(vals)) if (v.trim()) body[k] = v.trim()
+    try {
+      await api.put('/api/settings/keys', body)
+      await qc.invalidateQueries()
+      setMsg('Saved.'); setTimeout(onClose, 600)
+    } catch (e) { setMsg(String(e)) } finally { setBusy(false) }
+  }
+  return (
+    <Modal title="API keys" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-xs text-ink-400">Paste only the keys you want to set or replace. They are saved to this Mac's Keychain and are never displayed again. Leave a field empty to keep the current key.</p>
+        {Object.keys(labels).map(k => (
+          <Field key={k} label={labels[k]}>
+            <input type="password" autoComplete="off" spellCheck={false} className="input w-full font-mono text-xs" placeholder="paste key" value={vals[k]} onChange={e => setVals({ ...vals, [k]: e.target.value })} />
+          </Field>
+        ))}
+        <div className="flex items-center gap-2 justify-end">
+          {msg && <span className="text-xs text-ink-400 mr-auto">{msg}</span>}
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save keys'}</button>
+        </div>
+      </div>
+    </Modal>
   )
 }
