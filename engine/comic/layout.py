@@ -667,6 +667,16 @@ def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView
         while cw < min(max(w - 4, CAP_MIN_W), max_w) and _measure(cap, r, size, lh, cw, CAP_PAD) > max(22.0, (y1 - y0) * 0.45):
             cw = min(cw + 6, max(w - 4, CAP_MIN_W), max_w)
         h = _measure(cap, r, size, lh, cw, CAP_PAD)
+        # art guard: a caption may cover at most ~33% of its shard; long narration steps its type down (to 0.7x)
+        # rather than burying the picture
+        shard_area = max(1.0, (x1 - x0) * (y1 - y0))
+        steps = 0
+        while cw * h > 0.33 * shard_area and steps < 4 and (p.shape or {}).get("kind") != "inset":
+            size *= 0.92
+            natural = T.text_width(cap, r.face, size) + 2 * CAP_PAD[1] + 1
+            cw = min(max(CAP_MIN_W, natural), max(CAP_MIN_W, 0.75 * w), max_w)
+            h = _measure(cap, r, size, lh, cw, CAP_PAD)
+            steps += 1
         left = max(2.0, min(x0 + 3, PAGE_W - 2 - cw))
         if (p.shape or {}).get("kind") == "inset":  # a vignette's caption sits on the parchment just below the oval
             left = max(2.0, min(PAGE_W - cw - 2, (x0 + x1) / 2 - cw / 2))
@@ -685,6 +695,12 @@ def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView
         while bw < min(max(w - 4, 38.0), max_w) and _measure(bal, r, size, max(1.2, lh - 0.04), bw, BAL_PAD) > max(20.0, (y1 - y0) * 0.35):
             bw = min(bw + 6, max(w - 4, 38.0), max_w)
         bh = _measure(bal, r, size, max(1.2, lh - 0.04), bw, BAL_PAD)
+        steps = 0
+        while bw * bh > 0.28 * max(1.0, (x1 - x0) * (y1 - y0)) and steps < 4:
+            size *= 0.92
+            bw = min(max(38.0, T.text_width(bal, r.face, size) + 2 * BAL_PAD[1] + 1), max(38.0, 0.6 * w), max_w)
+            bh = _measure(bal, r, size, max(1.2, lh - 0.04), bw, BAL_PAD)
+            steps += 1
         left = min(max(2.0, x1 - 3 - bw), PAGE_W - 2 - bw)
         top = max(2.0, min(y0 + 3, PAGE_H - 7 - bh))
         col = callout_colours(p, "balloon", (left, top, left + bw, top + bh), canvas, ty, img)
