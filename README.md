@@ -55,6 +55,24 @@ Additions beyond the spec: `POST /api/pages/{id}/generate-all`, `GET /api/pages/
 `DELETE` for characters/refs/silhouettes, `GET /api/fonts.css` (the embedded Devanagari fonts for the live render).
 `GET /api/pages/{id}/render` takes `lang`, `paper`, `embed` and `canvas` (a key, to preview another canvas).
 
+### Typography and callouts
+
+`engine/typography.py` is the font catalog (OFL faces in `engine/comic/fonts/library/`, licences alongside) and five
+type presets (Illuminated manuscript — the default, Epic cinema, Ancient chronicle, Modern clean, Comic house) with a
+size scale S 0.9 / M 1.0 / L 1.2 (default) / XL 1.4. A volume stores its setting (`Volume.typography`); a page may
+override part of it (`Page.typography_override`). Columns added after a `studio.db` already exists are created at
+startup (`db.migrate`, additive only). A rendered page carries `@font-face` rules for only the faces it uses —
+inline base64 in PDFs and artifacts, `/api/fonts/{file}` (immutable cache) in the live render.
+
+Captions are small rounded shards and balloons are rounded with a tail; both are sized to their text, measured with
+the real glyph advances. Their colours come from `engine/colour.py`: in `smart` mode (default) from the panel's own
+palette under the box, with text at WCAG 7:1 or better; `state` is the fixed table; `custom` is the author's hex per
+state. A panel can pin its own colours (inspector → Callout colours) and carry an SFX word (`Panel.sfx`).
+
+Routes: `GET /api/fonts`, `GET /api/fonts/{file}`, `GET /api/typography/presets`, `GET|PUT /api/volumes/{id}/typography`,
+`PUT /api/pages/{id}` `{typography_override}`, `PUT /api/panels/{id}` `{sfx, text_colours}`, `GET /api/panels/{id}/palette`.
+After editing the catalog run `python scripts/export_typography.py` (the VITE_MOCK fixture; a test checks it).
+
 ### Jobs
 
 Generation, prefill, reference generation, silhouettes, cast proposal, export and the director batch run in one
