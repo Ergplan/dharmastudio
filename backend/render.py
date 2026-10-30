@@ -124,10 +124,17 @@ def marginalia_views(session: Session, page: Page) -> list[L.MarginaliaView]:
         if s is None:
             continue
         out.append(L.MarginaliaView(path=db.abs_path(s.path), url=db.media_url(s.path), x_mm=float(m.get("x_mm", 0)), y_mm=float(m.get("y_mm", 0)), w_mm=float(m.get("w_mm", 30)), h_mm=m.get("h_mm"), rotation=float(m.get("rotation", 0)), opacity=float(m.get("opacity", 0.85)), tint=m.get("tint")))
-    from .qr_api import page_elements  # QR page elements (backend/qr_api.py): printed like marginalia, full ink
+    return out
 
+
+def overlay_views(session: Session, page: Page) -> list[L.MarginaliaView]:
+    """QR page elements (backend/qr_api.py): above the art, on their own parchment plate, printed in print mode."""
+    from .qr_api import page_elements
+
+    out = []
     for e in page_elements(session, page.id):
-        out.append(L.MarginaliaView(path=e["path"], url=e["url"], x_mm=e["x_mm"], y_mm=e["y_mm"], w_mm=e["w_mm"], h_mm=e["h_mm"], rotation=0.0, opacity=1.0, tint=e["colour"]))
+        pl = e["plate"]
+        out.append(L.MarginaliaView(path=e["path"], url=e["url"], x_mm=pl["x_mm"], y_mm=pl["y_mm"], w_mm=pl["w_mm"], h_mm=pl["h_mm"], rotation=0.0, opacity=1.0, tint="none"))
     return out
 
 
@@ -227,7 +234,7 @@ def page_typography(page: Page) -> T.TypeSpec:
 def page_view(session: Session, page: Page, prefer_enhanced: bool = False) -> L.PageView:
     ty = page_typography(page)
     return L.PageView(number=page.number, panels=[panel_view(session, p, prefer_enhanced) for p in page.panels], beat=page.beat, is_opener=page.is_opener, title=title_block(page) if page.is_opener else None,
-                      marginalia=marginalia_views(session, page), seed=page.seed or 7, typography=ty, ink_dissolve=page.ink_dissolve, manuscript=manuscript_spec(page, ty))
+                      marginalia=marginalia_views(session, page), overlays=overlay_views(session, page), seed=page.seed or 7, typography=ty, ink_dissolve=page.ink_dissolve, manuscript=manuscript_spec(page, ty))
 
 
 # ---------------------------------------------------------------------------------

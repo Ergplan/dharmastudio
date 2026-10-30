@@ -48,16 +48,16 @@ export default function QRBuilder() {
 
   const saveNew = () => {
     const body = link ? { link_id: link.id, style } : { target_type: 'url', target_ref: 'https://cycleofdharma.world/', code: newCode, style }
-    create.mutate(body, { onSuccess: q => setSp({ q: String(q.id) }) })
+    create.mutate(body, { onSuccess: q => setSp({ tab: 'qr', q: String(q.id) }) })
   }
   return (
     <div className="h-full flex min-h-0">
       <aside className="w-60 shrink-0 border-r border-ink-800 flex flex-col min-h-0">
-        <div className="panel-h justify-between"><span>Saved QRs</span><button className="btn btn-sm" onClick={() => { setSp({}); setStyle(opts.defaults) }}><Plus size={11} />New</button></div>
+        <div className="panel-h justify-between"><span>Saved QRs</span><button className="btn btn-sm" onClick={() => { setSp({ tab: 'qr' }); setStyle(opts.defaults) }}><Plus size={11} />New</button></div>
         <div className="flex-1 overflow-auto">
           {qrs.length === 0 && <Empty>No saved QRs.</Empty>}
           {qrs.map(q => (
-            <button key={q.id} onClick={() => setSp({ q: String(q.id) })} className={cx('w-full flex gap-2 items-center p-2 border-b border-ink-850 text-left hover:bg-ink-850', q.id === selId && 'bg-ink-850')}>
+            <button key={q.id} onClick={() => setSp({ tab: 'qr', q: String(q.id) })} className={cx('w-full flex gap-2 items-center p-2 border-b border-ink-850 text-left hover:bg-ink-850', q.id === selId && 'bg-ink-850')}>
               <img src={`${q.preview_url}?dpi=96&v=${encodeURIComponent(JSON.stringify(q.style))}`} className="w-10 h-12 object-contain bg-parchment-400 rounded-sm" alt="" />
               <div className="min-w-0 text-xs">
                 <div className="font-mono text-ink-100 truncate">/v/{q.code}</div>
@@ -102,7 +102,7 @@ export default function QRBuilder() {
             : <button className="btn btn-primary" disabled={(!link && !newCode) || tooSmall || create.isPending} onClick={saveNew}><Save size={12} />Save QR</button>}
           {sel && <button className="btn" disabled={!!dirty || test.isPending} onClick={() => test.mutate(sel.id)}><QrCode size={12} />{test.isPending ? 'Testing…' : 'Decode test'}</button>}
           {sel && <button className="btn" disabled={!sel.tested || sel.approved} onClick={() => approve.mutate(sel.id)}>Approve</button>}
-          {sel && sel.placements.length === 0 && <button className="btn btn-ghost btn-icon" title="Delete" onClick={() => del.mutate(sel.id, { onSuccess: () => setSp({}) })}><Trash2 size={12} /></button>}
+          {sel && sel.placements.length === 0 && <button className="btn btn-ghost btn-icon" title="Delete" onClick={() => del.mutate(sel.id, { onSuccess: () => setSp({ tab: 'qr' }) })}><Trash2 size={12} /></button>}
         </div>
       </div>
 

@@ -228,7 +228,7 @@ def ensure_texture(dst: Path) -> str:
 CSS = """
 :root{--ink:#2a1d10;--rubric:#8c2f1c;--paper:#efe4c9;--edge:#5a3a1a}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;color:var(--ink);background:var(--paper) url(%(base)s/textures/parchment.jpg) center/cover fixed;font:18px/1.6 Spectral,Georgia,serif;min-height:100vh}
+body{margin:0;color:var(--ink);background:var(--paper) url(%(base)s/textures/parchment.jpg) top center/100% auto repeat-y;font:18px/1.6 Spectral,Georgia,serif;min-height:100vh}
 body:before{content:"";position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 140px rgba(70,46,22,.55)}
 a{color:var(--rubric)}
 .wrap{max-width:1040px;margin:0 auto;padding:28px 16px 64px}

@@ -378,10 +378,30 @@ def parchment(size: tuple[int, int]) -> Image.Image:
     if PARCHMENT.exists():
         tex = Image.open(PARCHMENT).convert("RGB")
         # take a patch at the texture's own scale (about 600 dpi over the page) so the grain is realistic
-        cw, ch = min(tex.width, size[0] * 2), min(tex.height, size[1] * 2)
-        patch = tex.crop((tex.width // 3, tex.height // 3, tex.width // 3 + cw, tex.height // 3 + ch))
+        k = min(1.0, tex.width / (size[0] * 2), tex.height / (size[1] * 2))  # keep the aspect when the patch is large
+        cw, ch = max(1, int(size[0] * 2 * k)), max(1, int(size[1] * 2 * k))
+        x0, y0 = min(tex.width // 3, tex.width - cw), min(tex.height // 3, tex.height - ch)
+        patch = tex.crop((x0, y0, x0 + cw, y0 + ch))
         return patch.resize(size, Image.LANCZOS)
     return Image.new("RGB", size, "#efe4c9")
+
+
+PLATE_MM = 2.5  # parchment backing around a placed QR (feathered), so it scans even where it overlaps the art
+
+
+def element_png(url: str, style: QRStyle, dpi: int = 600) -> bytes:
+    """The page element: the QR on a soft-edged patch of the parchment (the margin is PLATE_MM on every side)."""
+    base = raster(url, style, dpi)
+    pad = round(PLATE_MM / 25.4 * dpi)
+    W, H = base.width + 2 * pad, base.height + 2 * pad
+    plate = parchment((W, H)).convert("RGBA")
+    mask = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([pad // 2, pad // 2, W - pad // 2, H - pad // 2], radius=pad, fill=255)
+    plate.putalpha(mask.filter(ImageFilter.GaussianBlur(pad / 3)))
+    plate.alpha_composite(base, (pad, pad))
+    buf = io.BytesIO()
+    plate.save(buf, "PNG", dpi=(dpi, dpi))
+    return buf.getvalue()
 
 
 def png(url: str, style: QRStyle, dpi: int = 600) -> bytes:

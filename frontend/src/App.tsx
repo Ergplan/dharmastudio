@@ -44,8 +44,7 @@ export default function App() {
             <Route path="/director" element={<DirectorScreen />} />
             <Route path="/silhouettes" element={<SilhouettesScreen />} />
             <Route path="/export" element={<ExportScreen />} />
-            <Route path="/motion" element={<Navigate to="/motion/moments" replace />} />
-            <Route path="/motion/:tab" element={<MotionScreen />} />
+            <Route path="/motion" element={<MotionScreen />} />
             <Route path="*" element={<Navigate to="/project" replace />} />
           </Routes>
         </main>

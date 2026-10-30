@@ -146,6 +146,7 @@ class PageView:
     is_opener: bool = False
     title: TitleBlock | None = None
     marginalia: list[MarginaliaView] = field(default_factory=list)
+    overlays: list[MarginaliaView] = field(default_factory=list)  # drawn above the art, untinted (QR page elements)
     seed: int = 7
     typography: T.TypeSpec | None = None  # resolved fonts and sizes (volume setting + page override); None = default
     ink_dissolve: bool | None = None  # art fading into hatching at the margin edge; None = auto (on for calm, torn pages)
@@ -876,6 +877,10 @@ def _marginalia_svg(items: list[MarginaliaView], canvas: CanvasView, opts: Rende
         src = png_data(m.path) if (opts.embed or not m.url) else m.url
         if not src:
             continue
+        if m.tint == "none":  # already in its own colours (a QR on its parchment plate): no ink filter
+            h = m.h_mm or m.w_mm
+            out.append(f"<image href='{src}' x='{m.x_mm:.2f}' y='{m.y_mm:.2f}' width='{m.w_mm:.2f}' height='{h:.2f}' preserveAspectRatio='none' opacity='{m.opacity if m.opacity is not None else 1:.2f}'/>")
+            continue
         tint = m.tint or ms.get("tint") or canvas.ink
         fid = filters.get(tint)
         if fid is None:
@@ -1020,7 +1025,7 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
     svg = (
         f"<svg xmlns='http://www.w3.org/2000/svg' width='{PAGE_W + 2 * BLEED}mm' height='{PAGE_H + 2 * BLEED}mm' "
         f"viewBox='{-BLEED} {-BLEED} {PAGE_W + 2 * BLEED} {PAGE_H + 2 * BLEED}'><defs>{blur}{''.join(clips)}</defs>"
-        f"{bg}{ms_svg}{_marginalia_svg(page.marginalia, canvas, opts)}{''.join(fibres)}{''.join(imgs)}{''.join(hatch)}{''.join(veins)}{_crop_marks() if pr else ''}</svg>"
+        f"{bg}{ms_svg}{_marginalia_svg(page.marginalia, canvas, opts)}{''.join(fibres)}{''.join(imgs)}{''.join(hatch)}{''.join(veins)}{_marginalia_svg(page.overlays, canvas, opts)}{_crop_marks() if pr else ''}</svg>"
     )
     folio_col = ink if paper_gutter else "#8a8580"
     folio = f"<div class='folio' style=\"color:{folio_col};{_font_css(ty.role('narration', lang))}font-size:{2.4 * ty.size:.2f}mm\">{page.number}</div>"
@@ -1076,7 +1081,7 @@ def _manuscript(page: PageView, panels: list[PanelView], polys: dict[int, list[P
                          for k, x in (("book", t.book_title.upper()), ("vol", t.volume_title.upper()), ("chap", t.chapter_title)) if x)
             half = min(PAGE_W / 2 - MARGIN - 4, widest / 2 + 3)
             grid.rect((PAGE_W / 2 - half, MARGIN, PAGE_W / 2 + half, OPENER_TOP - 3))
-        for m in page.marginalia:
+        for m in page.marginalia + page.overlays:
             grid.rect((m.x_mm, m.y_mm, m.x_mm + m.w_mm, m.y_mm + (m.h_mm or m.w_mm)))
         grid.rect((PAGE_W - 12, PAGE_H - 8, PAGE_W, PAGE_H), 0)  # the folio
         vs, fs = MS.choose(spec.tags | {"any"}, page.seed * 1000 + page.number)

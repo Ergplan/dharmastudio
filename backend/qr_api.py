@@ -176,9 +176,9 @@ def element_png_path(session: Session, pq: PageQR) -> Path:
     sig = signature(url, st)[:16]
     d = db.DATA_DIR / "motion" / "qr"
     d.mkdir(parents=True, exist_ok=True)
-    p = d / f"qr{q.id}-{sig}.png"
+    p = d / f"qr{q.id}-{sig}-plate.png"
     if not p.exists():
-        p.write_bytes(Q.png(url, st, 600))
+        p.write_bytes(Q.element_png(url, st, 600))
     return p
 
 
@@ -194,9 +194,10 @@ def page_elements(session: Session, page_id: int) -> list[dict[str, Any]]:
         w, h = Q.dimensions(url, st)
         p = element_png_path(session, pq)
         # x/y/w/h: the printed box (a long URL label can be wider than the symbol); size_mm/sym_x_mm: the symbol as stored
+        pad = Q.PLATE_MM
         out.append({"id": pq.id, "qr_id": q.id, "path": p, "url": db.media_url(db.rel(p)), "x_mm": pq.x_mm - (w - pq.w_mm) / 2, "y_mm": pq.y_mm,
                     "w_mm": w, "h_mm": h, "size_mm": pq.w_mm, "sym_x_mm": pq.x_mm, "colour": st.colour, "tested": is_tested(session, q),
-                    "code": session.get(Link, q.link_id).code})
+                    "code": session.get(Link, q.link_id).code, "plate": {"x_mm": pq.x_mm - (w - pq.w_mm) / 2 - pad, "y_mm": pq.y_mm - pad, "w_mm": w + 2 * pad, "h_mm": h + 2 * pad}})
     return out
 
 

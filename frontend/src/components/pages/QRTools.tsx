@@ -70,9 +70,9 @@ export function QRToolbarButtons({ page }: { page: Page }) {
   return (
     <>
       {moment
-        ? <button className="btn btn-sm" title={`Open the moment /v/${moment.code}`} onClick={() => nav(`/motion/moments?m=${moment.id}`)}><Film size={11} /> Moment</button>
+        ? <button className="btn btn-sm" title={`Open the moment /v/${moment.code}`} onClick={() => nav(`/motion?tab=moments&m=${moment.id}`)}><Film size={11} /> Moment</button>
         : <button className="btn btn-sm" disabled={create.isPending} title="Make this page a QR moment: a 30 s film from its approved panels, a short link /v/{volume}-{page} and a tested QR"
-            onClick={() => create.mutate({ page_id: page.id }, { onSuccess: m => { toast('ok', 'Moment created', `/v/${m.code} — render it in Motion`); mqr.mutate({ id: m.id, test: true }); nav(`/motion/moments?m=${m.id}`) } })}><Film size={11} /> Make this page a QR moment</button>}
+            onClick={() => create.mutate({ page_id: page.id }, { onSuccess: m => { toast('ok', 'Moment created', `/v/${m.code} — render it in Motion`); mqr.mutate({ id: m.id, test: true }); nav(`/motion?tab=moments&m=${m.id}`) } })}><Film size={11} /> Make this page a QR moment</button>}
       <button className="btn btn-sm" title="Place a tested QR in free parchment (lower outer corner)" onClick={() => moment?.qr_id && moment.qr_tested ? mqr.mutate({ id: moment.id, place: true, test: false }, { onSuccess: () => toast('ok', 'QR placed', 'Drag it in Marginalia mode (M) to move or resize') }) : setPicker(true)}><QrCode size={11} /> Place a QR</button>
       {picker && <QRPicker page={page} onClose={() => setPicker(false)} />}
     </>

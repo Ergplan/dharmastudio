@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NavLink, useParams, useSearchParams } from 'react-router-dom'
+import { Link as NavLink, useSearchParams } from 'react-router-dom'
 import { Film, Play, Check, Globe, Upload, Trash2, GripVertical, Plus, QrCode, Link2, Clapperboard, Download, KeyRound, ExternalLink, Copy, Music } from 'lucide-react'
 import { usePages, useChapters } from '@/api/hooks'
 import { mediaUrl } from '@/api/client'
@@ -38,13 +38,14 @@ export function MomentBadge({ status }: { status: MomentStatus }) {
 
 /** Motion & Links: one rail entry, five tabs. */
 export default function MotionScreen() {
-  const { tab = 'moments' } = useParams()
+  const [sp] = useSearchParams()
+  const tab = sp.get('tab') || 'moments'
   const health = useMotionHealth().data
   return (
     <div className="h-full flex flex-col">
       <div className="h-9 shrink-0 border-b border-ink-800 bg-ink-900 flex items-center gap-1 px-2">
         {TABS.map(t => (
-          <NavLink key={t.id} to={`/motion/${t.id}`} className={({ isActive }) => cx('h-7 px-3 rounded flex items-center gap-1.5 text-xs', isActive || (tab === t.id) ? 'bg-ink-800 text-gold-300' : 'text-ink-400 hover:text-ink-100')}>
+          <NavLink key={t.id} to={`/motion?tab=${t.id}`} className={cx('h-7 px-3 rounded flex items-center gap-1.5 text-xs', tab === t.id ? 'bg-ink-800 text-gold-300' : 'text-ink-400 hover:text-ink-100')}>
             <t.icon size={13} />{t.label}
           </NavLink>
         ))}
@@ -91,14 +92,14 @@ function MomentsTab() {
               <option value="">page…</option>{free.map(p => <option key={p.id} value={p.id}>page {p.number}</option>)}
             </select>
             <button className="btn btn-primary btn-icon" disabled={!newPage || create.isPending} title="Make this page a QR moment"
-              onClick={() => newPage && create.mutate({ page_id: newPage }, { onSuccess: (m) => { setSp({ m: String(m.id) }); setNewPage('') } })}><Plus size={13} /></button>
+              onClick={() => newPage && create.mutate({ page_id: newPage }, { onSuccess: (m) => { setSp({ tab: 'moments', m: String(m.id) }); setNewPage('') } })}><Plus size={13} /></button>
           </div>
         </div>
         <div className="flex-1 overflow-auto">
           {isLoading && <Spinner />}
           {!isLoading && moments.length === 0 && <Empty>No moments yet. Pick a page above, or use “Make this page a QR moment” in Pages.</Empty>}
           {moments.map(m => (
-            <button key={m.id} onClick={() => setSp({ m: String(m.id) })} className={cx('w-full text-left flex gap-2 p-2 border-b border-ink-850 hover:bg-ink-850', sel === m.id && 'bg-ink-850')}>
+            <button key={m.id} onClick={() => setSp({ tab: 'moments', m: String(m.id) })} className={cx('w-full text-left flex gap-2 p-2 border-b border-ink-850 hover:bg-ink-850', sel === m.id && 'bg-ink-850')}>
               <div className="w-20 h-[2.8rem] rounded bg-ink-800 overflow-hidden shrink-0">{(m.outputs.poster || m.shots[0]?.thumb) && <img src={mediaUrl(m.outputs.poster || m.shots[0]?.thumb)} className="w-full h-full object-cover" alt="" />}</div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-ink-100 truncate">{m.title_en || `Page ${m.page}`}</div>
@@ -207,7 +208,7 @@ function MomentEditor({ id }: { id: number }) {
           <div className="flex gap-1.5 flex-wrap">
             <button className="btn btn-sm" onClick={() => mqr.mutate({ id: m.id, test: true })}><QrCode size={12} />{m.qr_id ? 'Re-test' : 'Make + test QR'}</button>
             <button className="btn btn-sm" disabled={!m.qr_id || !m.qr_tested} title={m.qr_tested ? 'Place in the lower outer corner of free parchment' : 'Test first'} onClick={() => mqr.mutate({ id: m.id, place: true, test: false })}>Place on page {m.page}</button>
-            {m.qr_id && <NavLink className="btn btn-sm btn-ghost" to={`/motion/qr?q=${m.qr_id}`}>Style…</NavLink>}
+            {m.qr_id && <NavLink className="btn btn-sm btn-ghost" to={`/motion?tab=qr&q=${m.qr_id}`}>Style…</NavLink>}
           </div>
         </div>
       </aside>
