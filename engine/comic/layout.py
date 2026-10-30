@@ -5,8 +5,9 @@ Procedure
   the gutters read as fractures. Panels are polygons in mm on a 170 x 260 mm page (+3 mm bleed). Shapes are stored
   per panel once computed and edited by the author; the renderer only draws what it is given.
 - Each polygon becomes an SVG clipPath over the panel's image (object-fit: cover with over-frame and a focal pan/zoom).
-- Captions and balloons are typeset in HTML with the state's colours; Hindi uses Noto Serif Devanagari (captions) and
-  Mukta (balloons), shaped correctly by Chromium. Playwright renders the PDF.
+- Captions, balloons, SFX and the title block are typeset in HTML with the state's colours, in the fonts and sizes of the
+  page's typography (engine/typography.py: a volume preset plus an optional page override; Hindi uses the hi_* fonts,
+  shaped by Chromium). A page embeds @font-face rules only for the faces it uses. Playwright renders the PDF.
 - Canvas: for screen the page background is the canvas's paper texture; for print (paper="print") only ink is output.
 """
 
@@ -19,6 +20,9 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from engine import colour as C
+from engine import typography as T
 
 from .visual_logic import PageLook, area_weight, beat_of, page_look, panel_colour
 
@@ -66,6 +70,8 @@ class PanelView:
     image_path: Path | None = None
     image_url: str | None = None  # served URL for the live UI render
     characters: list[str] = field(default_factory=list)
+    sfx: str = ""  # lettered sound effect (drawn in the sfx font at the shard's top-left)
+    text_colours: dict[str, Any] | None = None  # the panel's pinned callout colours {box, text, border}; None/auto = by mode
 
     @property
     def polygon(self) -> list[Point]:
@@ -136,6 +142,13 @@ class PageView:
     title: TitleBlock | None = None
     marginalia: list[MarginaliaView] = field(default_factory=list)
     seed: int = 7
+    typography: T.TypeSpec | None = None  # resolved fonts and sizes (volume setting + page override); None = default
+
+    @property
+    def type(self) -> T.TypeSpec:
+        if self.typography is None:
+            self.typography = T.resolve()
+        return self.typography
 
 
 @dataclass
@@ -487,8 +500,151 @@ def _esc(s: str | None) -> str:
     return html.escape(s or "", quote=False)
 
 
-def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView, opts: RenderOptions) -> str:
-    st = STATE_STYLE.get(p.text_state, STATE_STYLE["quiet"])
+# ---------------------------------------------------------------------------------
+# callouts: small rounded shards (captions) and rounded balloons with a tail, coloured from the panel's own palette
+# ---------------------------------------------------------------------------------
+
+CAP_PAD = (3.2, 3.4)  # vertical, horizontal padding (mm)
+BAL_PAD = (2.8, 3.2)
+CAP_MIN_W = 46.0
+
+
+def _rounded_path(pts: list[Point], radius: float) -> str:
+    """A closed path through pts with each corner rounded by a quadratic curve of ~radius mm."""
+    n = len(pts)
+    a_pts, b_pts = [], []
+    for i, v in enumerate(pts):
+        prv, nxt = pts[i - 1], pts[(i + 1) % n]
+        lp, ln = math.dist(prv, v) or 1e-6, math.dist(v, nxt) or 1e-6
+        r = min(radius, 0.4 * lp, 0.4 * ln)
+        a_pts.append((v[0] + (prv[0] - v[0]) / lp * r, v[1] + (prv[1] - v[1]) / lp * r))
+        b_pts.append((v[0] + (nxt[0] - v[0]) / ln * r, v[1] + (nxt[1] - v[1]) / ln * r))
+    d = [f"M{b_pts[0][0]:.2f},{b_pts[0][1]:.2f}"]
+    for i in list(range(1, n)) + [0]:
+        d.append(f"L{a_pts[i][0]:.2f},{a_pts[i][1]:.2f}Q{pts[i][0]:.2f},{pts[i][1]:.2f} {b_pts[i][0]:.2f},{b_pts[i][1]:.2f}")
+    return "".join(d) + "Z"
+
+
+def callout_polygon(w: float, h: float, seed: int, sharp: bool = False) -> list[Point]:
+    """An irregular 5-7 vertex shard around a w x h box: corners nudged (slight angle variation), 1-3 extra vertices
+    pushed outward on the edges. Stable per seed; never cuts into the padding (inward moves stay < 0.8 mm)."""
+    rng = random.Random(seed)
+    j = 0.9 if sharp else 0.6
+    corners = [(rng.uniform(-j, j * 0.6), rng.uniform(-j, j * 0.6)), (w + rng.uniform(-j * 0.6, j), rng.uniform(-j, j * 0.6)),
+               (w + rng.uniform(-j * 0.6, j), h + rng.uniform(-j * 0.6, j)), (rng.uniform(-j, j * 0.6), h + rng.uniform(-j * 0.6, j))]
+    extra = rng.choice((1, 2, 3))
+    edges = rng.sample(range(4), extra)
+    out: list[Point] = []
+    for i, c in enumerate(corners):
+        out.append(c)
+        if i in edges:
+            q = corners[(i + 1) % 4]
+            t = rng.uniform(0.3, 0.7)
+            mx, my = c[0] + (q[0] - c[0]) * t, c[1] + (q[1] - c[1]) * t
+            L = math.dist(c, q) or 1.0
+            nx, ny = (q[1] - c[1]) / L, -(q[0] - c[0]) / L  # outward normal for a clockwise box
+            k = rng.uniform(0.3, 1.1 if sharp else 0.8)
+            out.append((mx + nx * k, my + ny * k))
+    return out
+
+
+def balloon_path(w: float, h: float, tail_x: float, r: float = 3.2) -> str:
+    """Rounded balloon with a short tail off the bottom edge at tail_x, pointing down and toward the panel."""
+    r = min(r, h / 2.2, w / 4)
+    tx = min(max(tail_x, r + 1), w - r - 5)
+    return (f"M{r:.2f},0L{w - r:.2f},0Q{w:.2f},0 {w:.2f},{r:.2f}L{w:.2f},{h - r:.2f}Q{w:.2f},{h:.2f} {w - r:.2f},{h:.2f}"
+            f"L{tx + 4.2:.2f},{h:.2f}L{tx - 1.8:.2f},{h + 4.2:.2f}L{tx + 0.8:.2f},{h:.2f}"
+            f"L{r:.2f},{h:.2f}Q0,{h:.2f} 0,{h - r:.2f}L0,{r:.2f}Q0,0 {r:.2f},0Z")
+
+
+@dataclass
+class ImageInfo:
+    path: Path | None
+    box: tuple[float, float, float, float] | None  # x, y, w, h of the drawn image in page mm
+
+
+def _paper_hex(canvas: CanvasView) -> str:
+    cs = canvas.caption_style or {}
+    return cs.get("box_print") or ("#e8d6b2" if canvas.paper_is_gutter else "#efe4c9")
+
+
+def callout_colours(p: PanelView, kind: str, rect: tuple[float, float, float, float], canvas: CanvasView, ty: T.TypeSpec, img: ImageInfo | None) -> dict[str, Any]:
+    """{box, text, border, contrast, mode} for one callout, by the panel's pin, then the volume's colour mode."""
+    st = p.text_state if p.text_state in C.STATE_BOX else "quiet"
+    if kind == "balloon" and st not in ("ego",):
+        st_b = "quiet"
+    else:
+        st_b = st
+    got = C.pinned(p.text_colours)
+    if got:
+        return {**got, "mode": "pinned"}
+    if ty.colour_mode == "custom":
+        got = C.custom(ty.colours, st_b)
+        if got:
+            return {**got, "mode": "custom"}
+    cs = canvas.caption_style or {}
+    if ty.colour_mode == "state":
+        if kind == "balloon":
+            box, text = ("#0b0b0d", "#b3261e") if st == "ego" else ("#f6f1e6", "#111111")
+            return {"box": box, "text": text, "border": "#111111" if st != "ego" else "#b3261e", "contrast": round(C.contrast(box, text), 2), "mode": "state"}
+        return {**C.fixed(st, canvas.paper_is_gutter, cs.get("box_print"), cs.get("text")), "mode": "state"}
+    pal: list = []
+    if img and img.path and img.box:
+        bx, by, bw, bh = img.box
+        x0, y0, x1, y1 = rect
+        pal = C.palette(img.path, ((x0 - bx) / bw, (y0 - by) / bh, (x1 - bx) / bw, (y1 - by) / bh))
+    ink = cs.get("text", canvas.ink if canvas.paper_is_gutter else "#161210")
+    got = C.smart(pal, st_b, paper=_paper_hex(canvas), ink=ink, kind=kind)
+    return {**got, "mode": "smart"}
+
+
+def _callout(cls: str, pos: str, w: float, h: float, path_d: str, col: dict[str, Any], font_css: str, size: float, lh: float, text: str, pad: tuple[float, float], opts: RenderOptions, sharp: bool = False) -> str:
+    m = 2.0  # room around the box for outward vertices and the balloon tail
+    svg = (f"<svg class='co' viewBox='{-m} {-m} {w + 2 * m:.2f} {h + 2 * m + 4.5:.2f}' style='left:{-m}mm;top:{-m}mm;width:{w + 2 * m:.2f}mm;height:{h + 2 * m + 4.5:.2f}mm'>"
+           f"<path d='{path_d}' fill='{col['box']}' stroke='{col['border']}' stroke-width='0.35' stroke-linejoin='round'/></svg>")
+    return (f"<div class='{cls}' data-bg='{col['box']}' data-fg='{col['text']}' data-contrast='{col['contrast']}' data-colour='{col['mode']}' "
+            f"style=\"{pos}width:{w:.2f}mm;height:{h:.2f}mm;padding:{pad[0]}mm {pad[1]}mm;color:{col['text']};{font_css}font-size:{size:.2f}mm;line-height:{lh:.2f}\">"
+            f"{svg}<span>{_esc(text)}</span></div>")
+
+
+def _sfx_html(p: PanelView, poly: list[Point], canvas: CanvasView, ty: T.TypeSpec) -> str:
+    text = (p.sfx or "").strip()
+    if not text:
+        return ""
+    x0, y0, x1, y1 = _bbox(poly)
+    x0, y0, x1, y1 = max(x0, 0.0), max(y0, 0.0), min(x1, PAGE_W), min(y1, PAGE_H)
+    r = ty.sfx(text)
+    ink = SFX_INK.get(p.text_state) or (canvas.ink if canvas.paper_is_gutter else "#f2ede3")
+    halo = "#0b0b0d" if _luma(ink) > 0.5 else "#f4ecd9"
+    size = ty.sfx_mm()
+    room = max(10.0, (x1 - x0) - 8)
+    est_w = T.text_width(text, r.face, size)
+    if est_w > room:  # keep it inside the shard: shrink a long word to the shard's width
+        size = max(4.0, size * room / est_w)
+    shadow = ",".join(f"{dx}mm {dy}mm 0 {halo}" for dx, dy in ((0.25, 0.25), (-0.25, 0.25), (0.25, -0.25), (-0.25, -0.25), (0.6, 0.6)))
+    return (f"<div class='sfx' style=\"left:{x0 + 4:.1f}mm;top:{y0 + 3:.1f}mm;{_font_css(r)}font-size:{size:.2f}mm;"
+            f"color:{ink};text-shadow:{shadow}\">{_esc(text)}</div>")
+
+
+def _font_css(r: T.RoleFont) -> str:
+    return f"font-family:{r.stack};font-weight:{r.weight};" + ("font-style:italic;" if r.italic else "")
+
+
+def _luma(h: str) -> float:
+    r, g, b = _hex_to_rgb01(h)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+SFX_INK = {"rising": "#f2ede3", "peak": "#f2c45a", "ego": "#b3261e", "knowledge": "#d4a017", "voice": "#5a3a1a"}
+
+
+def _measure(text: str, r: T.RoleFont, size: float, lh: float, w: float, pad: tuple[float, float]) -> float:
+    lines = T.wrap_lines(text, r.face, size, w - 2 * pad[1])
+    return len(lines) * size * lh + 2 * pad[0] + 0.6
+
+
+def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView, opts: RenderOptions, ty: T.TypeSpec | None = None, img: ImageInfo | None = None) -> str:
+    ty = ty or T.resolve()
     cap = p.caption_hi if lang == "hi" else p.caption_en
     bal = p.balloon_hi if lang == "hi" else p.balloon_en
     if lang == "hi" and not cap and p.caption_en:
@@ -498,56 +654,61 @@ def _caption_html(p: PanelView, lang: str, poly: list[Point], canvas: CanvasView
     x0, y0, x1, y1 = _bbox(poly)
     x0, y0, x1, y1 = max(x0, 0.0), max(y0, 0.0), min(x1, PAGE_W), min(y1, PAGE_H)
     w = x1 - x0
-    cs = canvas.caption_style or {}
-    parchment_boxes = canvas.paper_is_gutter  # paper canvases: sepia serif on lightly textured parchment boxes
+    lh = ty.line_height
+    max_w = PAGE_W - 4
+    seed = p.number * 7919
     parts = []
     if cap:
-        cw = min(max(w * 0.72, 40), 110)
-        edge = st["edge"]
-        extra = ""
-        if edge == "fracture":
-            extra = "clip-path:polygon(0 6%,3% 0,97% 2%,100% 10%,99% 94%,96% 100%,2% 98%,0 90%);"
-        elif edge == "shard":
-            extra = "clip-path:polygon(0 0,100% 4%,98% 100%,3% 96%);"
-        elif edge == "glow":
-            extra = "box-shadow:0 0 2.2mm rgba(212,160,23,.55);"
-        elif edge == "torn":
-            extra = "clip-path:polygon(0 4%,4% 0,30% 2%,55% 0,80% 3%,100% 1%,99% 96%,70% 100%,40% 97%,10% 100%,1% 95%);"
-        border = "" if edge in ("none", "fracture", "shard", "glow", "torn") else f"border:{edge};"
-        fam = "'DevSerif','Georgia',serif" if lang == "hi" else "'Georgia','Times New Roman',serif"
-        size = "3.05mm" if lang == "hi" else "2.9mm"
-        box, text = st["box"], st["text"]
-        # on paper canvases narration (quiet/voice/rising) is sepia serif on a parchment box; peak/ego/knowledge keep their
-        # dark intensity boxes so the colour logic still reads
-        if parchment_boxes and p.text_state in ("quiet", "voice", "rising"):
-            text = cs.get("text", SEPIA)
-            if opts.print:
-                # boxes sit over artwork, so they must print a fill; a parchment tone matched to the stock
-                box = cs.get("box_print", "#efe3c6")
-            else:
-                box = cs.get("box_opaque", "rgba(241,231,206,0.94)")  # readable over any artwork
-            border = f"border:{cs.get('border', '0.2mm solid ' + SEPIA)};"
-            if cs.get("textured", True) and not opts.print:
-                extra += "background-image:repeating-linear-gradient(0deg,rgba(90,70,40,0.045) 0 0.3mm,transparent 0.3mm 0.9mm);"
-        bottom = max(2.0, PAGE_H - y1 + 3)
-        left = x0 + 3
-        if (p.shape or {}).get("kind") == "inset":  # a vignette's caption sits on the parchment just below the oval, not inside it
-            cw = min(max(w + 10, 40), 80)
+        r = ty.role("narration", lang)
+        size = ty.caption_mm(lang)
+        natural = T.text_width(cap, r.face, size) + 2 * CAP_PAD[1] + 1
+        cw = min(max(CAP_MIN_W, natural), max(CAP_MIN_W, 0.75 * w), max_w)
+        # long text: widen (up to the shard, then the page) before letting the box grow tall over the art
+        while cw < min(max(w - 4, CAP_MIN_W), max_w) and _measure(cap, r, size, lh, cw, CAP_PAD) > max(22.0, (y1 - y0) * 0.45):
+            cw = min(cw + 6, max(w - 4, CAP_MIN_W), max_w)
+        h = _measure(cap, r, size, lh, cw, CAP_PAD)
+        left = max(2.0, min(x0 + 3, PAGE_W - 2 - cw))
+        if (p.shape or {}).get("kind") == "inset":  # a vignette's caption sits on the parchment just below the oval
             left = max(2.0, min(PAGE_W - cw - 2, (x0 + x1) / 2 - cw / 2))
-            bottom = max(2.0, PAGE_H - y1 - 2 - 22)
-        parts.append(
-            f"<div class='cap' style=\"left:{left:.1f}mm;bottom:{bottom:.1f}mm;width:{cw:.1f}mm;background:{box};color:{text};"
-            f"font-family:{fam};font-size:{size};{border}{extra}\">{_esc(cap)}</div>"
-        )
+            top = max(2.0, min(y1 + 2.5, PAGE_H - 2.5 - h))
+        else:
+            top = max(2.0, min(y1 - 3 - h, PAGE_H - 2.5 - h))  # bottom-left of the shard, never off the trim
+        sharp = p.text_state in ("peak", "ego")
+        col = callout_colours(p, "caption", (left, top, left + cw, top + h), canvas, ty, img)
+        path = _rounded_path(callout_polygon(cw, h, seed, sharp), 1.0 if sharp else 1.6)
+        parts.append(_callout("cap", f"left:{left:.2f}mm;top:{top:.2f}mm;", cw, h, path, col, _font_css(r), size, lh, cap, CAP_PAD, opts, sharp))
     if bal:
-        bw = min(max(w * 0.55, 34), 80)
-        fam = "'Mukta',sans-serif" if lang == "hi" else "'Helvetica Neue',Arial,sans-serif"
-        ego = p.text_state == "ego"
-        parts.append(
-            f"<div class='bal' style=\"right:{max(2.0, PAGE_W - x1 + 3):.1f}mm;top:{y0 + 3:.1f}mm;width:{bw:.1f}mm;font-family:{fam};"
-            f"{'background:#0b0b0d;color:#b3261e;border-color:#b3261e;' if ego else ''}\">{_esc(bal)}</div>"
-        )
+        r = ty.role("dialogue", lang)
+        size = ty.balloon_mm(lang)
+        natural = T.text_width(bal, r.face, size) + 2 * BAL_PAD[1] + 1
+        bw = min(max(38.0, natural), max(38.0, 0.6 * w), max_w)
+        while bw < min(max(w - 4, 38.0), max_w) and _measure(bal, r, size, max(1.2, lh - 0.04), bw, BAL_PAD) > max(20.0, (y1 - y0) * 0.35):
+            bw = min(bw + 6, max(w - 4, 38.0), max_w)
+        bh = _measure(bal, r, size, max(1.2, lh - 0.04), bw, BAL_PAD)
+        left = min(max(2.0, x1 - 3 - bw), PAGE_W - 2 - bw)
+        top = max(2.0, min(y0 + 3, PAGE_H - 7 - bh))
+        col = callout_colours(p, "balloon", (left, top, left + bw, top + bh), canvas, ty, img)
+        path = balloon_path(bw, bh, bw * 0.22)
+        parts.append(_callout("bal", f"left:{left:.2f}mm;top:{top:.2f}mm;", bw, bh, path, col, _font_css(r), size, max(1.2, lh - 0.04), bal, BAL_PAD, opts))
+    parts.append(_sfx_html(p, poly, canvas, ty))
     return "".join(parts)
+
+
+def used_fonts(page: PageView, lang: str) -> list[T.RoleFont]:
+    """The faces this page draws with (narration always: the folio is set in it)."""
+    ty = page.type
+    out = [ty.role("narration", lang)]
+    if page.is_opener and page.title:
+        out.append(ty.role("title", lang))
+        epi = page.title.epigraph_hi or page.title.epigraph if lang == "hi" else page.title.epigraph
+        if epi:
+            out.append(ty.role("narration", lang, italic=True))
+    if any((p.balloon_hi or p.balloon_en) if lang == "hi" else p.balloon_en for p in page.panels):
+        out.append(ty.role("dialogue", lang))
+    for p in page.panels:
+        if (p.sfx or "").strip():
+            out.append(ty.sfx(p.sfx))
+    return out
 
 
 def _image_box(bbox: tuple[float, float, float, float], focal: dict[str, float], img_ar: float | None) -> tuple[float, float, float, float]:
@@ -572,31 +733,49 @@ def _image_box(bbox: tuple[float, float, float, float], focal: dict[str, float],
     return bx, by, bw, bh
 
 
-def _title_block_html(t: TitleBlock, lang: str, canvas: CanvasView, opts: RenderOptions) -> str:
+def _title_block_html(t: TitleBlock, lang: str, canvas: CanvasView, opts: RenderOptions, ty: T.TypeSpec | None = None) -> str:
+    ty = ty or T.resolve()
     ink = canvas.ink if canvas.paper_is_gutter else ("#e8dcc0" if canvas.gutter != "paper" else canvas.ink)
     if lang == "hi":
         book = t.book_title_hi or t.book_title
         vol = t.volume_title_hi or t.volume_title
         chap = t.chapter_title_hi or t.chapter_title
         epi = t.epigraph_hi or t.epigraph
-        fam = "'DevSerif','Georgia',serif"
     else:
-        book, vol, chap, epi, fam = t.book_title, t.volume_title, t.chapter_title, t.epigraph, "'Georgia','Times New Roman',serif"
+        book, vol, chap, epi = t.book_title, t.volume_title, t.chapter_title, t.epigraph
     num = f"{'अध्याय' if lang == 'hi' else 'Chapter'} {t.chapter_number}" if t.chapter_number else ""
+    tr, er = ty.role("title", lang), ty.role("narration", lang, italic=True)
+    width = PAGE_W - 2 * (MARGIN + 4)
+    avail = OPENER_TOP - MARGIN - 4
+    sz = {k: ty.title_mm(k) for k in T.TITLE_MM}
+
+    def est(k: float) -> float:  # the block's height at scale k (lines x size x leading, plus rule and ornament)
+        h = 0.0
+        for part, text, face in (("book", book.upper(), tr.face), ("vol", vol.upper(), tr.face), ("chapnum", num, tr.face), ("chap", chap, tr.face), ("epi", epi, er.face)):
+            if text:
+                lines = len(T.wrap_lines(text, face, sz[part] * k, width * (0.8 if part in ("book", "vol") else 0.95)))
+                h += lines * sz[part] * k * 1.18 + 0.8
+        return h + 3.4 + 7.5
+
+    k = 1.0
+    while k > 0.6 and est(k) > avail:
+        k -= 0.04
+    s = {p: v * k for p, v in sz.items()}
     compass = (
-        f"<svg class='compass' viewBox='-10 -10 20 20' width='9mm' height='9mm'><g fill='none' stroke='{ink}' stroke-width='0.5'>"
+        f"<svg class='compass' viewBox='-10 -10 20 20' width='7mm' height='7mm'><g fill='none' stroke='{ink}' stroke-width='0.5'>"
         "<circle r='8.5'/><circle r='5.5'/><path d='M0,-9 L1.6,-1.6 L9,0 L1.6,1.6 L0,9 L-1.6,1.6 L-9,0 L-1.6,-1.6 Z'/>"
         "<path d='M0,-6 L0,6 M-6,0 L6,0' stroke-width='0.3'/></g></svg>"
     )
     rule = f"<div class='rule' style='border-color:{ink}'></div>"
+    tf = _font_css(tr)
     return (
-        f"<div class='title' style=\"color:{ink};font-family:{fam}\">"
-        f"<div class='book'>{_esc(book).upper()}</div>"
-        + (f"<div class='vol'>{_esc(vol).upper()}</div>" if vol else "")
+        f"<div class='title' style=\"color:{ink};{tf}\">"
+        f"<div class='book' style='font-size:{s['book']:.2f}mm'>{_esc(book).upper()}</div>"
+        + (f"<div class='vol' style='font-size:{s['vol']:.2f}mm'>{_esc(vol).upper()}</div>" if vol else "")
         + rule
-        + (f"<div class='chapnum'>{_esc(num)}</div>" if num else "")
-        + (f"<div class='chap'>{_esc(chap)}</div>" if chap else "")
-        + (f"<div class='epi'>{_esc(epi)}</div>" if epi else "")
+        + (f"<div class='chapnum' style='font-size:{s['chapnum']:.2f}mm'>{_esc(num)}</div>" if num else "")
+        + (f"<div class='chap' style='font-size:{s['chap']:.2f}mm'>{_esc(chap)}</div>" if chap else "")
+        + (f"<div class='epi' style=\"{_font_css(er)}font-size:{s['epi']:.2f}mm\">{_esc(epi)}</div>" if epi else "")
         + f"<div class='ornament'>{compass}</div></div>"
     )
 
@@ -647,6 +826,7 @@ def balance_of(page: PageView) -> dict[str, float]:
 def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
     """One page as a <section>. The SVG holds the shards; the overlay holds captions, the title block and the folio."""
     lang, pr = opts.lang, opts.print
+    ty = page.type
     panels = sorted(page.panels, key=lambda p: (p.z, p.n))
     look = page_look_for(page.panels, page.beat)
     single_plate = len(panels) == 1 and panels[0].kind == "plate"
@@ -688,6 +868,7 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
         lead_url = p.image_url if img_path is p.image_path else next((q.image_url for q in panels if q.image_path == img_path), None)
         src = img_data(img_path) if (opts.embed or not lead_url) else lead_url
         cut = f"mask='url(#m{uid})'" if feather else f"clip-path='url(#c{uid})'"
+        info = ImageInfo(img_path if src else None, _image_box(bbox, p.focal, _image_aspect(img_path)) if src else None)
         if src:
             bx, by, bw, bh = _image_box(bbox, p.focal, _image_aspect(img_path))
             imgs.append(
@@ -710,7 +891,7 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
         if p.edge == "rim" and p.shape.get("kind") == "hex":
             veins.append(f"<polygon points='{pts}' fill='none' stroke='#f2c45a' stroke-opacity='0.35' stroke-width='1.2' filter='url(#blur{pid})'/>"
                          f"<polygon points='{pts}' fill='none' stroke='#ffd977' stroke-opacity='0.9' stroke-width='0.35'/>")
-        caps.append(_caption_html(p, lang, poly, canvas, opts))
+        caps.append(_caption_html(p, lang, poly, canvas, opts, ty, info))
     blur = f"<filter id='blur{pid}' x='-5%' y='-5%' width='110%' height='110%'><feGaussianBlur stdDeviation='0.45'/></filter>"
     # background: paper canvases show the paper (texture for screen, nothing for print); others fill the gutter colour
     if single_plate:
@@ -726,8 +907,8 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
         f"{bg}{_marginalia_svg(page.marginalia, canvas, opts)}{''.join(imgs)}{''.join(veins)}{_crop_marks() if pr else ''}</svg>"
     )
     folio_col = ink if paper_gutter else "#8a8580"
-    folio = f"<div class='folio' style='color:{folio_col}'>{page.number}</div>"
-    title = _title_block_html(page.title, lang, canvas, opts) if (page.is_opener and page.title) else ""
+    folio = f"<div class='folio' style=\"color:{folio_col};{_font_css(ty.role('narration', lang))}font-size:{2.4 * ty.size:.2f}mm\">{page.number}</div>"
+    title = _title_block_html(page.title, lang, canvas, opts, ty) if (page.is_opener and page.title) else ""
     texture = ""
     if not pr and canvas.paper_texture is not None and canvas.paper_texture.exists():
         tsrc = png_data(canvas.paper_texture) if (opts.embed or not canvas.texture_url) else canvas.texture_url
@@ -750,34 +931,40 @@ def _crop_marks() -> str:
     return f"<g stroke='#000' stroke-width='0.15' opacity='0.9'>{''.join(lines)}</g>"
 
 
-def book_css(opts: RenderOptions) -> str:
+def book_css(opts: RenderOptions, faces: set | None = None) -> str:
+    """The book's CSS. @font-face rules only for `faces` ((family, Face) pairs, from used_fonts): embedded as data
+    URIs for PDFs and artifacts, else /api/fonts/{file} URLs (long-cached) for the live render."""
     body_bg = "transparent" if opts.print else "#2a2622"
-    return f"""{font_css() if opts.embed else ""}
+    shadow = "" if opts.print else ".cap>svg.co,.bal>svg.co{filter:drop-shadow(0 0.25mm 0.5mm rgba(0,0,0,.35)) drop-shadow(0 0 1mm rgba(0,0,0,.18))}"
+    return f"""{T.font_face_css(faces or set(), opts.embed)}
 @page {{ size: {PAGE_W + 2 * BLEED}mm {PAGE_H + 2 * BLEED}mm; margin: 0; }}
 html,body{{margin:0;padding:0;background:{body_bg}}}
 .page{{position:relative;width:{PAGE_W + 2 * BLEED}mm;height:{PAGE_H + 2 * BLEED}mm;page-break-after:always;overflow:hidden;background-color:{'transparent' if opts.print else '#efe4c9'}}}
 .page > svg{{position:absolute;left:0;top:0}}
 .overlay{{position:absolute;left:{BLEED}mm;top:{BLEED}mm;width:{PAGE_W}mm;height:{PAGE_H}mm}}
-.cap{{position:absolute;padding:1.6mm 2.2mm;line-height:1.32;box-sizing:border-box}}
-.bal{{position:absolute;padding:1.8mm 2.4mm;background:#f6f1e6;color:#111;border:0.3mm solid #111;border-radius:3.5mm;font-size:2.7mm;line-height:1.3;box-sizing:border-box}}
-.folio{{position:absolute;bottom:2.5mm;right:4mm;font:2.4mm 'Georgia',serif}}
-.title{{position:absolute;left:{MARGIN + 4}mm;right:{MARGIN + 4}mm;top:{MARGIN + 2}mm;height:{OPENER_TOP - MARGIN - 6}mm;text-align:center;letter-spacing:0.08em}}
-.title .book{{font-size:3.2mm;letter-spacing:0.3em}}
-.title .vol{{font-size:2.4mm;letter-spacing:0.22em;margin-top:0.8mm;opacity:.85}}
-.title .rule{{border-top:0.25mm solid;width:40mm;margin:1.6mm auto}}
-.title .chapnum{{font-size:2.3mm;letter-spacing:0.25em;opacity:.8}}
-.title .chap{{font-size:5.2mm;letter-spacing:0.04em;margin-top:0.6mm}}
-.title .epi{{font-size:2.5mm;font-style:italic;letter-spacing:0;margin-top:1.4mm;opacity:.9}}
-.title .ornament{{margin-top:1mm}}
+.cap,.bal{{position:absolute;box-sizing:border-box;display:flex;align-items:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.bal{{justify-content:center;text-align:center}}
+.cap>svg.co,.bal>svg.co{{position:absolute;overflow:visible;pointer-events:none}}
+.cap>span,.bal>span{{position:relative}}
+{shadow}
+.sfx{{position:absolute;line-height:1;white-space:nowrap;letter-spacing:0.02em;transform:rotate(-7deg);transform-origin:0 0}}
+.folio{{position:absolute;bottom:2.5mm;right:4mm}}
+.title{{position:absolute;left:{MARGIN + 4}mm;right:{MARGIN + 4}mm;top:{MARGIN + 1}mm;height:{OPENER_TOP - MARGIN - 4}mm;text-align:center;letter-spacing:0.08em;line-height:1.18;display:flex;flex-direction:column;align-items:center;justify-content:center}}
+.title .book{{letter-spacing:0.3em}}
+.title .vol{{letter-spacing:0.22em;margin-top:0.8mm;opacity:.85}}
+.title .rule{{border-top:0.25mm solid;width:40mm;margin:1.4mm auto}}
+.title .chapnum{{letter-spacing:0.25em;opacity:.8}}
+.title .chap{{letter-spacing:0.04em;margin-top:0.4mm}}
+.title .epi{{letter-spacing:0;margin-top:1.2mm;opacity:.9}}
+.title .ornament{{margin-top:0.8mm;line-height:0}}
 """
 
 
-FONT_CSS_URL = "/api/fonts.css"
+FONT_CSS_URL = "/api/fonts.css"  # legacy (the studio's original two Devanagari faces); pages now carry their own @font-face
 
 
-def book_html(pages: list[str], title: str, opts: RenderOptions) -> str:
-    link = "" if opts.embed else f"<link rel='stylesheet' href='{FONT_CSS_URL}'>"
-    return f"<!doctype html><html><head><meta charset='utf-8'><title>{_esc(title)}</title>{link}<style>\n{book_css(opts)}</style></head><body>{''.join(pages)}</body></html>"
+def book_html(pages: list[str], title: str, opts: RenderOptions, faces: set | None = None) -> str:
+    return f"<!doctype html><html><head><meta charset='utf-8'><title>{_esc(title)}</title><style>\n{book_css(opts, faces)}</style></head><body>{''.join(pages)}</body></html>"
 
 
 def render_pdf(html_text: str, out_pdf: Path, progress=None) -> Path:
