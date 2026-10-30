@@ -1,8 +1,8 @@
 """Dharma Studio.app — native Mac entry point.
 
 Starts the studio server on a free localhost port inside this process and shows it in a native window
-(pywebview / WebKit). Projects live in ~/Library/Application Support/Dharma Studio; API keys live in the
-macOS Keychain (service "Dharma Studio"), entered from Project → Keys inside the app. No Terminal, no pip.
+(pywebview / WebKit). Projects live in ~/Library/Application Support/Dharma Studio; API keys live in
+~/Library/Application Support/Dharma Studio/keys.env (mode 0600), entered from Project → API keys inside the app. No Terminal, no pip.
 """
 
 from __future__ import annotations
@@ -39,6 +39,10 @@ def load_keys_from_keychain() -> None:
             if "=" in ln:
                 k, v = ln.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
+    # The Keychain is opt-in (DHARMA_USE_KEYCHAIN=1): an ad-hoc-signed app is a "new app" to the Keychain after every
+    # update, so macOS would prompt (or block, unattended) on each launch. The default store is keys.env (0600).
+    if os.environ.get("DHARMA_USE_KEYCHAIN") != "1":
+        return
     try:
         import keyring
     except Exception:  # noqa: BLE001
@@ -103,6 +107,15 @@ def main() -> None:
         from backend import seed
 
         seed.run()
+    # the bundled book: every chapter of all three books, already split (idempotent; never deletes work)
+    try:
+        from backend import book_seed
+
+        db.init_db()
+        with db.session_scope() as s:
+            book_seed.ensure(s)
+    except Exception as e:  # noqa: BLE001
+        print("book import skipped:", e, flush=True)
 
     import uvicorn
 

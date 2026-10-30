@@ -18,3 +18,8 @@ data/ch1_candidates/
 # source images supplied with the repo (140 MB): kept on disk, not in git
 data/ch1_candidates/
 docs/screens/real_failure.png
+
+# the full book text and PDF stay out of the public repo (author decision pending)
+engine/book/The_Cycle_of_Dharma.pdf
+engine/book/book.json
+engine/book/scene_settings.yaml

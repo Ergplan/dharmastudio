@@ -11,6 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: macos-14            # Apple Silicon (arm64): M1 and later
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -63,6 +64,7 @@ jobs:
           hdiutil create -volname "Dharma Studio" -srcfolder dmg -ov -format UDZO DharmaStudio.dmg
 
       - name: Test the app from the .dmg (as a user would get it)
+        timeout-minutes: 15
         run: |
           set -e
           mkdir -p mnt test-apps "$RUNNER_TEMP/home"
@@ -81,7 +83,7 @@ jobs:
           curl -sf "${URL}api/pages?chapter_id=1" | python3 -c "import sys,json;d=json.load(sys.stdin);n=sum(len(p['panels']) for p in d);c=sum(len(x['candidates']) for p in d for x in p['panels']);print(len(d),'pages',n,'panels',c,'candidates');assert len(d)==10 and n==32 and c==64"
           curl -sf "${URL}api/pages/1/render?lang=hi" | grep -q "DevSerif" && echo "Hindi render ok"
           # keys: Keychain write/read through the app (non-fatal: CI keychains can be locked)
-          curl -sf -X PUT "${URL}api/settings/keys" -H 'content-type: application/json' -d '{"topaz":"ci-test-key"}' && curl -sf -X PUT "${URL}api/settings/keys" -H 'content-type: application/json' -d '{"topaz":""}' && echo "keys ok" || echo "::warning::keychain write not available on the CI runner"
+          curl -sf -m 20 -X PUT "${URL}api/settings/keys" -H 'content-type: application/json' -d '{"topaz":"ci-test-key"}' && curl -sf -m 20 -X PUT "${URL}api/settings/keys" -H 'content-type: application/json' -d '{"topaz":""}' && echo "keys ok" || echo "::warning::key store write failed"
           # approve page 3 (the plate) and export it to PDF with Google Chrome
           python3 - "$URL" <<'PY'
           import json, sys, time, urllib.request
@@ -106,7 +108,7 @@ jobs:
           f=$(ls "$HOME/Library/Application Support/Dharma Studio/data/exports/"*.pdf | head -1); mdls -name kMDItemNumberOfPages "$f" 2>/dev/null || true; cp "$f" export-test.pdf
           pkill -f "test-apps/Dharma Studio.app" || true
           # GUI launch: open the real window and capture the screen
-          open "test-apps/Dharma Studio.app"; sleep 25; screencapture -x window-test.png || true
+          (open "test-apps/Dharma Studio.app" && sleep 25 && screencapture -x window-test.png) || true
           pkill -f "test-apps/Dharma Studio.app" || true
 
       - uses: actions/upload-artifact@v4
@@ -136,5 +138,5 @@ jobs:
             Built from ${{ github.sha }}. Apple Silicon Macs (M1 and later), macOS 14 (Sonoma) or later.
             Install: open the .dmg, drag Dharma Studio to Applications.
             First launch: right-click Dharma Studio → Open (the app is not notarised), then Open again.
-            Keys: Project → API keys → Set keys (saved in the macOS Keychain).
+            Keys: Project → API keys → Set keys (saved privately in ~/Library/Application Support/Dharma Studio, readable only by your user).
             PDF export: the first export downloads the studio's PDF engine once (about 90 MB); Google Chrome is not needed.
