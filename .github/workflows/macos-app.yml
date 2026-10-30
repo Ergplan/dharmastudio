@@ -32,7 +32,9 @@ jobs:
           pip install -e ".[desktop,dev]"
 
       - name: Tests
-        run: python -m pytest -q -x tests || echo "::warning::tests failed (app still built)"
+        run: |
+          python scripts/restore_seed_art.py
+          python -m pytest -q -x tests || echo "::warning::tests failed (app still built)"
 
       - name: App icon
         run: |
