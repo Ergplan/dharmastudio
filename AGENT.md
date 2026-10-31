@@ -6,8 +6,11 @@ You are continuing **Dharma Studio** at `~/apps/dharma-studio`. Read `SPEC.md` (
 
 ## Rules that never bend
 1. No image is generated for a panel whose characters are not all locked (409 from the API; the UI shows why).
-2. Image models never draw text. Every caption, balloon, title is typeset by the layout. The only in-image
-   glyphs permitted are राम on Agastya's arrow.
+2. In **shards** mode image models never draw text: every caption, balloon, title is typeset by the layout (the only
+   in-image glyphs permitted are राम on Agastya's arrow). In **painted-page** mode (Volume 1's default since
+   2026-10-31) the image model letters the page itself, so every box text must be a verbatim manuscript excerpt of at
+   most 14 words, and the critic's transcription must match every box exactly with no extra text — else the page is
+   repainted (≤ 2) and flagged; never auto-approved. The house style is `engine/director/painted.py` HOUSE_STYLE, verbatim.
 3. Captions are the book's sentences unless the author edits them in Script.
 4. Every candidate keeps its full prompt + feedback (ledger and reproducibility).
 5. Approved pages are frozen; the PDF is assembled from approved page artifacts only.

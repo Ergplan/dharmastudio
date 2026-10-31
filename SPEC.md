@@ -122,8 +122,8 @@ texture image in the page background for screen; for print the paper is the stoc
 ## 6. Non-negotiables
 
 - No generation for a page with an unlocked character on it.
-- Sunburst never draws text; all lettering is typeset. The only permitted in-image glyphs are the word राम on
-  Agastya's arrow.
+- Shards mode: Sunburst never draws text; all lettering is typeset. The only permitted in-image glyphs are the word
+  राम on Agastya's arrow. Painted-page mode (§10) is the one exception: the lettering is painted and proofread.
 - Captions are the book's sentences unless the author edits them in the Script screen.
 - Every candidate keeps its full prompt and the feedback that produced it (reproducibility and the ledger).
 - Approved pages are frozen: regenerate requires un-approving.
@@ -184,3 +184,29 @@ flag (`POST /api/jobs/{id}/stop` finishes the current panel and halts). Steps pe
 `GET /api/director/estimate` with the same body returns `{panels, images, usd}` before running (Sunburst ≈ $0.04
 per 1536×1024 high image; Gemini NB 2.1 ≈ $0.03; Topaz 1 credit per export image). The Pages screen gets a
 "Director" button opening this form; the jobs tray shows the batch with its page-by-page progress and Stop.
+
+## 10. Painted-page mode (added 2026-10-31)
+
+The author rejected the composited-shard pages (too dark, too detailed, not parchment). A page now has a **mode**:
+`painted` (Volume 1's default) or `shards` (the compositor above), set per volume (`Volume.page_mode`) with a per-page
+override (`Page.page_mode`). In painted mode the image model (gpt-image-2.5-sunburst, 1024×1536 portrait, quality
+high) paints the WHOLE page in one fixed house style, with large readable lettering inside parchment narration boxes.
+
+- Prompt (`engine/director/painted.py: build_page_prompt`): HOUSE_STYLE (the author's sentence, verbatim) + the
+  typography line + the pacing line + a safe-area line + the opener header ("BOOK ONE · n — Title", first page of the
+  chapter) + the locked looks (the Character table, as for shards) + every panel in reading order:
+  `Panel k (<shot>): <scene>. Narration box: “<exact text>”` / `Speech balloon (<speaker>): “<exact text>”`.
+- Box texts are verbatim manuscript excerpts (trimmed at word/clause boundaries or elided with “…”), at most 14 words;
+  a longer line is rejected with a message telling the author to split it. Planner-chosen sentences are fitted.
+- Text check: the painted page + the expected texts go to the critic model (OpenAI vision via `engine/llm.py`,
+  default gpt-6.1-sol, fallback gpt-5.5, selectable per run) for a JSON transcription of every lettered text; quotes,
+  dashes and case are normalised; a page passes only if every box text appears exactly, the header is present and
+  nothing else is lettered. Failed pages are repainted with a lettering correction up to 2 times; every painting,
+  prompt and transcription is kept (`Page.painted`, the DirectorRun); the best is pre-selected; never auto-approved.
+- The selected painting IS the page artifact: the render and the PDF place it full-bleed (170×260 mm + 3 mm bleed,
+  crop marks in print), Topaz-upscaled when the export asks for upscaling.
+- "Edit box text" (Director → run) validates the new text, then re-runs only the repaint + text check.
+- Without keys the page is a PIL parchment placeholder with the box texts lettered, flagged as unproven.
+
+Routes: `GET /api/art-director/painted/style`, `PUT /api/art-director/volumes/{id}/mode`, `PUT /api/art-director/pages/{id}/mode`,
+`GET /api/art-director/pages/{id}/painted`, `POST …/painted/select`, `POST …/painted/verify`, `POST …/painted/boxes`.

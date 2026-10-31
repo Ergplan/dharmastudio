@@ -139,6 +139,14 @@ critic's fix → pre-select the best → flag anything unproven. Every step is a
 there is a cost estimate, a budget cap and Stop. Without keys the plan is deterministic, images are placeholders and
 candidates are *unjudged* — flagged for the author, never silently accepted.
 
+**Painted-page mode** (Volume 1's default; toggle *Painted page / Shards* in the brief, per book with a per-page
+override): the image model paints the whole page — panels, parchment and the lettering in the narration boxes — in
+the author's fixed house style (`engine/director/painted.py`, shown read-only in the brief). Box texts are verbatim
+manuscript excerpts of at most 14 words. After painting, the critic model (gpt-6.1-sol, fallback gpt-5.5) transcribes
+every lettered text; each painting shows a ✓/✗ per box with what was actually painted, failed pages are repainted with
+a lettering correction (≤ 2), and *Edit box text* re-runs only the repaint + text check. The chosen painting is the
+page artifact, exported full-bleed. See `SPEC.md` §10.
+
 **Covers & posters** (a tab of the Director): the poster art prompt is composed from the volume's chapters (§8, §9),
 painted with no text, and the studio typesets THE CYCLE OF DHARMA, the volume line, RACHIT AGARWAL and the publisher
 line in Cinzel — PNG + PDF at 300 ppi, 2:3. The author's current cover can be uploaded as a reference; it is kept in
