@@ -237,3 +237,58 @@ Routes (`backend/book_api.py`, prefix `/api/book`): `GET /import/candidates`, `P
 `GET …/thumb`, `GET …/png`, `POST /books/{b}/export/pdf {paper}` (job `book_pdf`), `POST /books/{b}/export/package`,
 `GET /books/{b}/exports`, `GET /shlokas | /figures | /textures | /fonts`.
 
+### 11.1 Comments — review and revise the page (added 2026-10-31)
+
+The page is reviewed as live HTML and revised element by element until every page is approved.
+
+- **Comment mode** (toolbar *Comment*, key C; Esc leaves). Hover outlines the target and names its layer; a click pins
+  a numbered comment on: a text box (by id), the shloka, a margin figure (`figure:<i>`), the page number (`folio`),
+  the paper (`texture`), the art (the click point; a drag marks a rectangle), an art patch (`patch:<id>`, its rect), or
+  the page as a whole (*Whole page*). A popover takes the text (*Add* / *Add & apply*). Pins stay on the page
+  (gold open, green applied, red failed); the *Comments* panel (right column) lists open / applied / dismissed;
+  clicking a comment selects its element.
+- **Storage**: `page.comments = [{id, n, anchor: {layer: text|paper|art|page, element, x, y, rect?}, text, status:
+  open|applied|dismissed, created, result: {summary, history_seq, cost, model, notes[], error?}}]` and
+  `page.status = draft|review|approved`, in the page JSON through `book_store` with history. Comments and status do
+  not change the render hash (no re-render, no new thumb). History seqs are never reused (`history.seq`).
+- **Apply** (`POST …/comments/{c}/apply`, `POST …/comments/apply-all`) = job `book_comment` (progress and cost in the
+  jobs UI; each comment one history step, so one undo reverts one comment). Routing by anchor:
+  - text box: Claude (`engine/claude_agent.py`, the agent model; the OpenAI text model when only that key exists) gets
+    the comment, the page JSON (boxes, era, template, scene type, art window, patches, paper), the neighbouring
+    pages' text, the manifest styles, the font list and a sketch of the page (art + labelled boxes + the pin); prompt
+    `engine/book_comment.md` (captions cut from the manuscript at clause boundaries, ~16 words, no Devanagari). The
+    answer `{summary, patch}` may hold only `text, style, font, size_px, align, x, y, w, h, tail` for that box; it is
+    rejected when it names another element, leaves the page, adds Devanagari or exceeds 24 words.
+  - paper: `{summary, paper}` with `shloka_id` (from GET /shlokas), `texture` (/textures), `figure` (name from
+    /figures, or null to remove) or `page_number` — only the anchored element; Sanskrit is never written by the model.
+  - art: Sunburst `/v1/images/edits` with the current painting (resized to the Sunburst size) and, for a region, a
+    mask from the rectangle (page px → painting px through fit / focus). Prompt = comment + the house style sentence +
+    "no text, no lettering, no empty boxes in the painting". The result is composited back into the region only
+    (feathered) at the painting's resolution and saved as `art/<page>_v<n>.jpg`; nothing is overwritten, so undo /
+    restore bring the old file back. If the model refuses the mask (or `SUNBURST_MASK=false`), it is a whole-art edit
+    with "change ONLY the marked region" and only the region is kept; the result says so. A patch anchor repaints the
+    patch's rect and removes the patch in the same step. No OpenAI key: a labelled dry-run placeholder.
+  - page: `{summary, patches: [{target: text:<id> | paper | figure:<i>, set}]}`, every patch validated as above,
+    applied as ONE history step; one bad patch rejects the answer.
+  Failures are recorded on the comment (`result.error`) without a history step; the comment stays open.
+- **Before / after**: for the last applied comment (while only comment / status changes follow it) the canvas offers
+  *Before* (GET `…/render?seq=<history_seq>`) / *After*, *Keep* (closes the review) and *Revert*
+  (`POST …/comments/{c}/revert`: a plain undo, or — when only comment / status steps followed — the page content back
+  to before the apply as a new step, other comments kept).
+- **Patches** (`dharma-book/2`): `art.patches = [{id, x, y, w, h, linked, hidden?}]` in page px over boxes the painter
+  left empty; `art.file` is the clean painting. Rendered after the painting inside the art layer (texture page_warm,
+  8 px radius, a soft 2 px edge), listed under Art in the Layers panel, hideable (`PATCH …/art/patches/{id}
+  {hidden}`) and removable (`DELETE …`). Packages without patches render as before; export writes `/2` only when a
+  page has patches.
+- **Finish the comic**: page status from the inspector or *Approve* (409 with `open_comments` when comments are open;
+  the UI asks, then `force`). The book view carries `progress {pages, approved, review, draft, open_comments}` and each
+  page summary `status, open_comments, comments, patches`; the strip filters all / comments / not approved and jumps
+  to the next page with comments. `POST /books/{b}/finish {force?}` refuses (409 with the unapproved pages) until
+  every page is approved, then starts the print PDF job and writes the package.
+- **Costs**: Claude tokens at `AGENT_IN_PER_M` / `AGENT_OUT_PER_M` (3 / 15 USD per M), Sunburst by its usage; each
+  apply's cost is on the comment, the job and the ledger.
+
+Routes (`backend/book_comments.py`, prefix `/api/book`): `POST /books/{b}/pages/{p}/comments`, `PATCH|DELETE
+…/comments/{c}`, `POST …/comments/{c}/apply`, `POST …/comments/apply-all`, `POST …/comments/{c}/revert`, `PUT
+…/status`, `PATCH|DELETE …/art/patches/{id}`, `GET /books/{b}/progress`, `POST /books/{b}/finish`; and
+`GET …/render?seq=` in `book_api.py`. Tests: `tests/test_book_comments.py` (language and image models mocked).

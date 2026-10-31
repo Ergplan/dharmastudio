@@ -1,9 +1,23 @@
+import type React from 'react'
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { cx } from '@/components/ui'
 import { useBoxSize } from '@/components/pages/PageFrame'
-import type { Book, BookPage, TextBox } from './api'
+import type { Anchor, Book, BookComment, BookPage, TextBox } from './api'
+import { CommentLayer } from './CommentLayer'
 
-export type Selection = { type: 'text'; id: string } | { type: 'art' } | { type: 'paper' } | null
+export type Selection = { type: 'text'; id: string } | { type: 'art' } | { type: 'patch'; id: string } | { type: 'paper' } | null
+
+/** Comment mode: what the canvas needs to show pins, outline targets and take a new comment. */
+export interface CommentProps {
+  on: boolean
+  comments: BookComment[]
+  active: string | null
+  aspects: Record<string, number>
+  onPick: (id: string) => void
+  onSubmit: (anchor: Anchor, text: string, apply: boolean) => void
+  pending: Anchor | null
+  setPending: (a: Anchor | null) => void
+}
 
 type Rect = { x: number; y: number; w: number; h: number }
 type Drag = { mode: 'move' | 'resize' | 'tail'; id: string; sx: number; sy: number; orig: Rect & { tail: [number, number] | null }; cur: Rect & { tail: [number, number] | null }; moved: boolean }
@@ -15,8 +29,8 @@ const CSS_PX_PER_MM = 96 / 25.4
  * overlay on top: text boxes can be selected, dragged, resized (corner handle), edited inline (double-click), and a
  * glass balloon's tail moved by its handle. Coordinates are the package's page px.
  */
-export function BookCanvas({ book, page, html, sel, onSelect, onCommitBox, onEditText }: {
-  book: Book; page: BookPage; html: string | undefined; sel: Selection
+export function BookCanvas({ book, page, html, sel, onSelect, onCommitBox, onEditText, comment, overlay }: {
+  book: Book; page: BookPage; html: string | undefined; sel: Selection; comment?: CommentProps; overlay?: React.ReactNode
   onSelect: (s: Selection) => void
   onCommitBox: (id: string, patch: Partial<TextBox>) => void
   onEditText: (box: TextBox, text: string) => void
@@ -73,7 +87,9 @@ export function BookCanvas({ book, page, html, sel, onSelect, onCommitBox, onEdi
     const r = stage.current!.getBoundingClientRect()
     const x = (e.clientX - r.left) / f, y = (e.clientY - r.top) / f
     const a = page.art
-    if (a && page.layers.art && x >= a.x && x <= a.x + a.w && y >= a.y && y <= a.y + a.h) onSelect({ type: 'art' })
+    const pa = a && page.layers.art ? [...(a.patches ?? [])].reverse().find(p => !p.hidden && x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) : undefined
+    if (pa) onSelect({ type: 'patch', id: pa.id })
+    else if (a && page.layers.art && x >= a.x && x <= a.x + a.w && y >= a.y && y <= a.y + a.h) onSelect({ type: 'art' })
     else onSelect({ type: 'paper' })
     setEditing(null)
   }
@@ -91,6 +107,7 @@ export function BookCanvas({ book, page, html, sel, onSelect, onCommitBox, onEdi
           {/* art and paper selection outlines */}
           {sel?.type === 'art' && art && <div className="absolute border-2 border-sky-400/80 pointer-events-none" style={{ left: art.x * f, top: art.y * f, width: art.w * f, height: art.h * f }} />}
           {sel?.type === 'paper' && <div className="absolute inset-0 border-2 border-amber-400/70 pointer-events-none" />}
+          {sel?.type === 'patch' && art?.patches?.filter(p => p.id === sel.id).map(p => <div key={p.id} className="absolute border-2 border-dashed border-sky-300 pointer-events-none" style={{ left: p.x * f, top: p.y * f, width: p.w * f, height: p.h * f }} />)}
           {textOn && page.text.map(t => {
             const d = drag?.id === t.id ? drag.cur : null
             const r = d ?? t
@@ -119,6 +136,8 @@ export function BookCanvas({ book, page, html, sel, onSelect, onCommitBox, onEdi
               </div>
             )
           })}
+          {comment && <CommentLayer book={book} page={page} f={f} dispW={dispW} dispH={dispH} {...comment} />}
+          {overlay}
         </div>
       )}
     </div>

@@ -34,7 +34,10 @@ export function LayerToggles({ layers, onToggle }: { layers: Layers; onToggle: (
 }
 
 /** The page's layers, top to bottom, with every text box (click to select). */
-export function LayersList({ page, sel, onSelect, onToggle }: { page: BookPage; sel: Selection; onSelect: (s: Selection) => void; onToggle: (k: LayerKey, v: boolean) => void }) {
+export function LayersList({ page, sel, onSelect, onToggle, onPatch, onRemovePatch }: {
+  page: BookPage; sel: Selection; onSelect: (s: Selection) => void; onToggle: (k: LayerKey, v: boolean) => void
+  onPatch?: (id: string, hidden: boolean) => void; onRemovePatch?: (id: string) => void
+}) {
   const row = (k: LayerKey, icon: ReactNode, label: string, active: boolean, onClick: () => void, sub?: string) => (
     <div className={cx('flex items-center gap-2 h-7 px-2 rounded cursor-pointer', active ? 'bg-gold-500/10 text-gold-200' : 'hover:bg-ink-800 text-ink-200')} onClick={onClick}>
       <button className="text-ink-400 hover:text-ink-100" onClick={(e) => { e.stopPropagation(); onToggle(k, !page.layers[k]) }} title={page.layers[k] ? 'Hide' : 'Show'}>
@@ -58,6 +61,20 @@ export function LayersList({ page, sel, onSelect, onToggle }: { page: BookPage; 
         ))}
       </div>
       {row('art', <ImageIcon size={12} className="text-ink-400" />, 'Art', sel?.type === 'art', () => onSelect({ type: 'art' }), page.art ? page.art.file.replace('art/', '') : 'none')}
+      {!!page.art?.patches?.length && (
+        <div className="ml-6 mb-1" data-testid="patches-list">
+          <div className="text-2xs text-ink-500 px-2 h-5 flex items-center">Patches · {page.art.patches.length}</div>
+          {page.art.patches.map(pa => (
+            <div key={pa.id} className={cx('h-6 px-2 rounded text-2xs flex items-center gap-2 cursor-pointer group', sel?.type === 'patch' && sel.id === pa.id ? 'bg-sky-500/15 text-sky-200' : 'text-ink-300 hover:bg-ink-800')}
+              onClick={() => onSelect({ type: 'patch', id: pa.id })}>
+              <button className="text-ink-400 hover:text-ink-100" title={pa.hidden ? 'Show' : 'Hide'} onClick={(e) => { e.stopPropagation(); onPatch?.(pa.id, !pa.hidden) }}>{pa.hidden ? <EyeOff size={11} /> : <Eye size={11} />}</button>
+              <span className="w-2 h-2 rounded-sm shrink-0 bg-[#e8d8b4] border border-sepia/50" />
+              <span className={cx('flex-1 truncate', pa.hidden && 'opacity-50 line-through')}>{pa.id} <span className="text-ink-500">{pa.linked ? `→ ${pa.linked}` : 'unlinked'}</span></span>
+              <button className="opacity-0 group-hover:opacity-100 text-red-300" title="Remove patch" onClick={(e) => { e.stopPropagation(); onRemovePatch?.(pa.id) }}><Trash2 size={11} /></button>
+            </div>
+          ))}
+        </div>
+      )}
       {row('paper', <ScrollText size={12} className="text-ink-400" />, 'Paper', sel?.type === 'paper', () => onSelect({ type: 'paper' }), [page.paper.texture, page.paper.shloka?.source, `${page.paper.figures.length} fig`].filter(Boolean).join(' · '))}
     </div>
   )
@@ -257,6 +274,23 @@ export function PageHistory({ bid, page, onRestore }: { bid: string; page: BookP
             {h.kind === 'page' && <button className="btn btn-ghost btn-sm" title="Restore the page as it was before this change" onClick={() => onRestore(h.seq)}>before</button>}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+export function PatchInspector({ page, id, onPatch, onRemove, onComment }: { page: BookPage; id: string; onPatch: (hidden: boolean) => void; onRemove: () => void; onComment: () => void }) {
+  const pa = page.art?.patches?.find(p => p.id === id)
+  if (!pa) return null
+  return (
+    <div className="p-3 flex flex-col gap-3" data-testid="patch-inspector">
+      <div className="flex items-center gap-2"><ImageIcon size={13} className="text-sky-300" /><span className="text-xs font-medium text-ink-100">Art patch</span><span className="text-2xs font-mono text-ink-500">{pa.id}</span></div>
+      <div className="text-2xs text-ink-400">A parchment cover-up over a box the painter left empty in the art{pa.linked ? <> (under text box <span className="font-mono">{pa.linked}</span>)</> : ''}.</div>
+      <div className="text-2xs font-mono text-ink-400">x {Math.round(pa.x)} · y {Math.round(pa.y)} · {Math.round(pa.w)} × {Math.round(pa.h)}</div>
+      <div className="flex gap-2 flex-wrap">
+        <button className="btn btn-sm" onClick={() => onPatch(!pa.hidden)}>{pa.hidden ? <Eye size={11} /> : <EyeOff size={11} />}{pa.hidden ? 'Show' : 'Hide'}</button>
+        <button className="btn btn-sm btn-danger" onClick={onRemove}><Trash2 size={11} />Remove</button>
+        <button className="btn btn-sm btn-primary" onClick={onComment} title="A comment on this patch: the engine repaints its area into the scene, then removes the patch">Repaint into the scene…</button>
       </div>
     </div>
   )

@@ -17,16 +17,27 @@ export interface TextBox {
 export interface Figure { name: string; x: number; y: number; h: number; opacity: number; mirror: boolean }
 export interface Shloka { id: string; lines: string[]; source: string }
 export interface Paper { texture: string; shloka: Shloka | null; figures: Figure[] }
-export interface Art { file: string; x: number; y: number; w: number; h: number; torn?: boolean; fit?: 'cover' | 'contain' | 'fill'; focus?: [number, number] }
+export interface ArtPatch { id: string; x: number; y: number; w: number; h: number; linked: string | null; hidden?: boolean }
+export interface Art { file: string; x: number; y: number; w: number; h: number; torn?: boolean; fit?: 'cover' | 'contain' | 'fill'; focus?: [number, number]; patches?: ArtPatch[] }
+export type PageStatus = 'draft' | 'review' | 'approved'
+export type CommentStatus = 'open' | 'applied' | 'dismissed'
+export type AnchorLayer = 'text' | 'paper' | 'art' | 'page'
+export interface Rect { x: number; y: number; w: number; h: number }
+export interface Anchor { layer: AnchorLayer; element: string | null; x: number; y: number; rect?: Rect }
+export interface CommentResult { summary?: string; history_seq?: number; cost?: number; model?: string | null; notes?: string[]; applied?: string; error?: string; at?: string }
+export interface BookComment { id: string; n: number; anchor: Anchor; text: string; status: CommentStatus; created: string; result: CommentResult | null }
+export interface Progress { pages: number; approved: number; review: number; draft: number; open_comments: number }
 export interface BookPage {
   id: string; number: number | null; era?: string | null; template?: string | null; paper: Paper; art: Art | null; text: TextBox[]
   page_number: boolean; layers: Layers; rev: string; thumb: string; art_url: string | null
+  status: PageStatus; comments: BookComment[]
 }
-export interface PageSummary { id: string; number: number; rev: string; thumb: string; texts: number; has_art: boolean; layers: Layers; template?: string; era?: string; header?: string | null }
+export interface PageSummary { id: string; number: number; rev: string; thumb: string; texts: number; has_art: boolean; layers: Layers; template?: string; era?: string; header?: string | null
+  status: PageStatus; open_comments: number; comments: number; patches: number }
 export interface BookSummary { id: string; title: string; volume: string; author: string; pages: number; imported_at: string; source: string; updated_at?: string }
 export interface Book extends BookSummary {
   page_px: [number, number]; trim_mm: [number, number]; bleed_mm: number; frame: { l: number; r: number; t: number; b: number }
-  cover_url: string | null; pages_list: PageSummary[]; undo: number; format: string
+  cover_url: string | null; pages_list: PageSummary[]; undo: number; format: string; progress: Progress
 }
 export interface ShlokaInfo { id: string; source: string; lines: string[]; iast: string; meaning: string; tags: string[] }
 export interface FontFam { family: string; house: boolean; faces: { file: string; weight: string; style: string; url: string }[] }
@@ -50,6 +61,10 @@ export const useBookPage = (b: string | null, p: string | null) => useQuery({ qu
 export const useBookRender = (b: string | null, p: string | null, rev: string | undefined) => useQuery({
   queryKey: bk.render(b ?? '', p ?? '', rev ?? ''), queryFn: () => api.get<string>(`${B}/books/${b}/pages/${p}/render`), enabled: !!b && !!p && !!rev, staleTime: Infinity,
   placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[2] === p ? prev : undefined),  // keep showing this page while its new render loads
+})
+/** The page as it was before history entry `seq` (the "before" of an applied comment). */
+export const useBookRenderBefore = (b: string | null, p: string | null, seq: number | null) => useQuery({
+  queryKey: ['book-render-before', b, p, seq], queryFn: () => api.get<string>(`${B}/books/${b}/pages/${p}/render?seq=${seq}`), enabled: !!b && !!p && !!seq, staleTime: Infinity,
 })
 export const usePageHistory = (b: string | null, p: string | null) => useQuery({ queryKey: bk.history(b ?? '', p ?? ''), queryFn: () => api.get<HistoryEntry[]>(`${B}/books/${b}/pages/${p}/history`), enabled: !!b && !!p })
 export const useBookExports = (b: string | null) => useQuery({ queryKey: bk.exports(b ?? ''), queryFn: () => api.get<ExportFile[]>(`${B}/books/${b}/exports`), enabled: !!b })
@@ -80,6 +95,16 @@ export const bookApi = {
   page: (b: string, p: string, body: { page_number?: boolean }) => api.patch<BookPage>(`${B}/books/${b}/pages/${p}`, body),
   replaceArt: (b: string, p: string, file: File) => { const fd = new FormData(); fd.append('file', file); return api.post<BookPage>(`${B}/books/${b}/pages/${p}/art`, fd) },
   restore: (b: string, p: string, seq: number) => api.post<BookPage>(`${B}/books/${b}/pages/${p}/restore`, { seq }),
+  addComment: (b: string, p: string, body: { anchor: Anchor; text: string }) => api.post<BookPage & { created: string }>(`${B}/books/${b}/pages/${p}/comments`, body),
+  patchComment: (b: string, p: string, c: string, body: { text?: string; status?: 'open' | 'dismissed' }) => api.patch<BookPage>(`${B}/books/${b}/pages/${p}/comments/${c}`, body),
+  deleteComment: (b: string, p: string, c: string) => api.del<BookPage>(`${B}/books/${b}/pages/${p}/comments/${c}`),
+  applyComment: (b: string, p: string, c: string) => api.post<JobResp>(`${B}/books/${b}/pages/${p}/comments/${c}/apply`),
+  applyAll: (b: string, p: string) => api.post<JobResp>(`${B}/books/${b}/pages/${p}/comments/apply-all`),
+  revertComment: (b: string, p: string, c: string) => api.post<BookPage>(`${B}/books/${b}/pages/${p}/comments/${c}/revert`),
+  status: (b: string, p: string, status: PageStatus, force = false) => api.put<BookPage>(`${B}/books/${b}/pages/${p}/status`, { status, force }),
+  patchPatch: (b: string, p: string, id: string, body: Partial<ArtPatch>) => api.patch<BookPage>(`${B}/books/${b}/pages/${p}/art/patches/${id}`, body),
+  deletePatch: (b: string, p: string, id: string) => api.del<BookPage>(`${B}/books/${b}/pages/${p}/art/patches/${id}`),
+  finish: (b: string, force = false) => api.post<JobResp & { package: { url: string; name: string }; unapproved: { id: string; number: number }[] }>(`${B}/books/${b}/finish`, { force }),
   pageUndo: (b: string, p: string) => api.post<{ page: BookPage; undone: string }>(`${B}/books/${b}/pages/${p}/undo`),
 }
 
@@ -116,3 +141,11 @@ export const useDeleteBook = (onOk: () => void) => useApiMutation((bid: string) 
 
 export const STYLE_LABEL: Record<TextStyle, string> = { parchment: 'Parchment card', glass: 'Glass balloon', 'glass-narration': 'Glass narration', header: 'Header' }
 export const fmtBytes = (n: number) => n > 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : n > 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`
+
+/** A 409 from the server carries {message, …} as JSON in the error detail. */
+export function conflictOf<T = Record<string, unknown>>(e: unknown): (T & { message?: string }) | null {
+  const err = e as { status?: number; detail?: string }
+  if (err?.status !== 409) return null
+  try { return JSON.parse(err.detail ?? '') } catch { return { message: err.detail } as T & { message?: string } }
+}
+export const STATUS_LABEL: Record<PageStatus, string> = { draft: 'Draft', review: 'In review', approved: 'Approved' }

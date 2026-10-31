@@ -1,18 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpenCheck, Upload, Download, Package, Undo2, Plus, Trash2, Copy, FilePlus2, ImagePlus, ExternalLink, FolderOpen, FileImage, Type, ChevronDown } from 'lucide-react'
+import { BookOpenCheck, Upload, Download, Package, Undo2, Plus, Trash2, Copy, FilePlus2, ImagePlus, ExternalLink, FolderOpen, FileImage, Type, ChevronDown, MessageSquarePlus, MessageSquare, CheckCircle2, Flag, SkipForward, RotateCcw, Check, FileText } from 'lucide-react'
 import { cx, Empty, Modal, Spinner, JobProgress } from '@/components/ui'
 import { toast } from '@/store/toasts'
 import { BookCanvas, type Selection } from '@/components/book/BookCanvas'
-import { LayerToggles, LayersList, TextInspector, ArtInspector, PaperInspector, PageHistory } from '@/components/book/BookInspector'
+import { LayerToggles, LayersList, TextInspector, ArtInspector, PaperInspector, PageHistory, PatchInspector } from '@/components/book/BookInspector'
+import { CommentsPanel, PageStatusControl, ApproveAnyway, STATUS_TONE } from '@/components/book/BookComments'
+import { anchorLabel } from '@/components/book/targets'
 import {
   useBooks, useBook, useBookPage, useBookRender, usePageEdit, bookApi, useAddPage, useAddPageFromImage, useDeletePage, useReorder, useBookUndo,
   useExportPdf, useExportPackage, useBookExports, useCandidates, useImportPath, useImportUpload, fmtBytes, STYLE_LABEL,
-  type Book, type BookPage, type TextBox, type TextStyle, type LayerKey,
+  useFigures, usePageHistory, useBookRenderBefore, conflictOf, STATUS_LABEL,
+  type Book, type BookPage, type TextBox, type TextStyle, type LayerKey, type Anchor, type BookComment,
 } from '@/components/book/api'
+import type { CommentProps } from '@/components/book/BookCanvas'
 
 const LS = 'dharma.book.v1'
 const load = (): { book?: string; page?: string } => { try { return JSON.parse(localStorage.getItem(LS) ?? '{}') } catch { return {} } }
 const save = (v: { book?: string; page?: string }) => { try { localStorage.setItem(LS, JSON.stringify(v)) } catch { /* private window */ } }
+const META_ACTIONS = ['add comment', 'edit comment', 'dismiss comment', 'reopen comment', 'delete comment', 'status:']  // backend/book_comments.py
+const KEPT = 'dharma.book.kept.v1'  // applied comments whose before / after review the author closed with Keep
+const loadKept = (): string[] => { try { return JSON.parse(localStorage.getItem(KEPT) ?? '[]') } catch { return [] } }
+
+/** Comment-mode state shared by the canvas (pins, popover) and the inspector (Comments panel). */
+interface CommentState { mode: boolean; setMode: (v: boolean) => void; active: string | null; setActive: (id: string | null) => void; pending: Anchor | null; setPending: (a: Anchor | null) => void; run: number | null; setRun: (j: number | null) => void }
 
 /**
  * Book — the finished book, page by page, as three layers (paper · art · text) that can each be edited, hidden,
@@ -35,6 +45,12 @@ export default function BookScreen() {
   }, [book, pid]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => save({ book: bid ?? undefined, page: pid ?? undefined }), [bid, pid])
   useEffect(() => setSel(null), [pid])
+  const [mode, setMode] = useState(false)
+  const [active, setActive] = useState<string | null>(null)
+  const [pending, setPending] = useState<Anchor | null>(null)
+  const [run, setRun] = useState<number | null>(null)
+  useEffect(() => { setActive(null); setPending(null) }, [pid])
+  const cs: CommentState = { mode, setMode: (v) => { setMode(v); if (!v) setPending(null) }, active, setActive, pending, setPending, run, setRun }
   const live = book?.pages_list.some(p => p.id === pid) ? pid : null  // never ask for a page that just left the book
   const { data: page } = useBookPage(bid, live)
   const { data: html } = useBookRender(bid, live, page?.rev)
@@ -58,10 +74,10 @@ export default function BookScreen() {
         <div className="flex-1 min-h-0 flex">
           <PageStrip book={book} pid={pid} onPick={setPid} />
           <div className="flex-1 min-w-0 flex flex-col">
-            {page ? <Centre book={book} page={page} html={html} sel={sel} setSel={setSel} /> : <Spinner />}
+            {page ? <Centre book={book} page={page} html={html} sel={sel} setSel={setSel} cs={cs} /> : <Spinner />}
           </div>
           <div className="w-[21rem] shrink-0 border-l border-ink-800 bg-ink-900/40 overflow-auto">
-            {page && <Inspector book={book} page={page} sel={sel} setSel={setSel} />}
+            {page && <Inspector book={book} page={page} sel={sel} setSel={setSel} cs={cs} />}
           </div>
         </div>
       )}
@@ -95,6 +111,8 @@ function TopBar({ book, books, bid, pid, setBid, onImport, onUndone }: { book: B
         </select>
         {book && <span className="text-2xs text-ink-500">{book.pages} pages · {book.trim_mm[0]}×{book.trim_mm[1]} mm + {book.bleed_mm} mm bleed</span>}
         <span className="flex-1" />
+        {book?.progress && <ProgressPill book={book} />}
+        {book && <FinishButton book={book} onJob={(j) => { setJob(j); setDone(null) }} onPackage={(p) => setDone(p)} />}
         <button className="btn" onClick={onImport}><Upload size={12} />Import</button>
         <div className="flex items-center rounded border border-ink-600 overflow-hidden">
           <select className="h-7 bg-ink-800 text-xs text-ink-200 px-1.5 border-r border-ink-600 outline-none" value={paper} onChange={(e) => setPaper(e.target.value as 'print' | 'screen')} aria-label="PDF paper">
@@ -117,7 +135,54 @@ function TopBar({ book, books, bid, pid, setBid, onImport, onUndone }: { book: B
   )
 }
 
+function ProgressPill({ book }: { book: Book }) {
+  const p = book.progress
+  const f = p.pages ? p.approved / p.pages : 0
+  return (
+    <div className="flex items-center gap-2 mr-1" data-testid="book-progress" title={`${p.approved} approved · ${p.review} in review · ${p.draft} draft`}>
+      <div className="w-36 h-1.5 rounded-full bg-ink-800 overflow-hidden flex">
+        <div className="h-full bg-emerald-400" style={{ width: `${f * 100}%` }} />
+        <div className="h-full bg-sky-400/60" style={{ width: `${p.pages ? p.review / p.pages * 100 : 0}%` }} />
+      </div>
+      <span className="text-2xs text-ink-300 whitespace-nowrap"><b className="text-emerald-300 font-mono">{p.approved}</b> / {p.pages} approved, <b className={cx('font-mono', p.open_comments ? 'text-gold-300' : 'text-ink-400')}>{p.open_comments}</b> open comment{p.open_comments === 1 ? '' : 's'}</span>
+    </div>
+  )
+}
+
+function FinishButton({ book, onJob, onPackage }: { book: Book; onJob: (j: number) => void; onPackage: (p: { url: string; name: string }) => void }) {
+  const [warn, setWarn] = useState<{ unapproved: { id: string; number: number }[]; open_comments: number } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const go = async (force: boolean) => {
+    setBusy(true)
+    try {
+      const r = await bookApi.finish(book.id, force)
+      setWarn(null); onJob(r.job_id); onPackage({ url: r.package.url, name: r.package.name })
+      toast('ok', 'Finishing the comic', `print PDF rendering · ${r.package.name} written`)
+    } catch (e) {
+      const c = conflictOf<{ unapproved: { id: string; number: number }[]; open_comments: number }>(e)
+      if (c?.unapproved) setWarn(c)
+      else toast('error', 'Finish failed', (e as Error).message)
+    } finally { setBusy(false) }
+  }
+  const all = book.progress.approved === book.progress.pages
+  return (
+    <>
+      <button className={cx('btn', all && 'btn-primary')} onClick={() => go(false)} disabled={busy} title="Export the print PDF + package of the finished comic (every page approved)"><Flag size={12} />Finish</button>
+      {warn && (
+        <Modal title="Not every page is approved" onClose={() => setWarn(null)} width="max-w-md">
+          <div className="text-xs text-ink-300 mb-2"><b>{warn.unapproved.length}</b> of {book.pages} pages are not approved{warn.open_comments ? <>, and <b>{warn.open_comments}</b> comments are still open</> : ''}:</div>
+          <div className="max-h-40 overflow-auto font-mono text-2xs text-ink-400 mb-3 leading-5">{warn.unapproved.map(u => u.number).join(', ')}</div>
+          <div className="flex justify-end gap-2"><button className="btn" onClick={() => setWarn(null)}>Keep reviewing</button><button className="btn btn-primary" disabled={busy} onClick={() => go(true)}><Flag size={12} />Export anyway</button></div>
+        </Modal>
+      )}
+    </>
+  )
+}
+
+type StripFilter = 'all' | 'open' | 'unapproved'
+
 function PageStrip({ book, pid, onPick }: { book: Book; pid: string | null; onPick: (id: string) => void }) {
+  const [filter, setFilter] = useState<StripFilter>('all')
   const [drag, setDrag] = useState<string | null>(null)
   const [over, setOver] = useState<{ id: string; after: boolean } | null>(null)
   const [menu, setMenu] = useState(false)
@@ -127,7 +192,13 @@ function PageStrip({ book, pid, onPick }: { book: Book; pid: string | null; onPi
   const add = useAddPage(book.id, (p) => { onPick(p.id); toast('ok', `Page ${p.number} added`) })
   const addImg = useAddPageFromImage(book.id, (p) => { onPick(p.id); toast('ok', `Page ${p.number} added from the image`) })
   const del = useDeletePage(book.id)
-  const list = book.pages_list
+  const all = book.pages_list
+  const list = filter === 'open' ? all.filter(p => p.open_comments > 0 || p.id === pid) : filter === 'unapproved' ? all.filter(p => p.status !== 'approved' || p.id === pid) : all
+  const nextOpen = () => {
+    const i = all.findIndex(p => p.id === pid)
+    const n = [...all.slice(i + 1), ...all.slice(0, i + 1)].find(p => p.open_comments > 0 && p.id !== pid)
+    if (n) onPick(n.id); else toast('info', 'No other page with open comments')
+  }
   const active = useRef<HTMLButtonElement>(null)
   useEffect(() => { active.current?.scrollIntoView({ block: 'nearest' }) }, [pid])
   useEffect(() => {
@@ -163,11 +234,20 @@ function PageStrip({ book, pid, onPick }: { book: Book; pid: string | null; onPi
         )}
         <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addImg.mutate({ file: f, after: pid ?? undefined }); e.target.value = '' }} />
       </div>
+      <div className="px-2 py-1.5 border-b border-ink-800 flex flex-col gap-1.5" data-testid="strip-filters">
+        <div className="flex gap-1">
+          {([['all', 'All'], ['open', 'Comments'], ['unapproved', 'Not approved']] as [StripFilter, string][]).map(([k, l]) => (
+            <button key={k} className={cx('chip flex-1 justify-center', filter === k && 'chip-on')} onClick={() => setFilter(k)}>{l}</button>
+          ))}
+        </div>
+        <button className="btn btn-sm justify-center" onClick={nextOpen} disabled={!all.some(p => p.open_comments > 0)} title="Next page with open comments"><SkipForward size={11} />Next with comments</button>
+      </div>
       <div className="flex-1 overflow-auto p-2 flex flex-col gap-2" onDragOver={(e) => e.preventDefault()} onDrop={drop}>
         {list.map(p => (
           <div key={p.id} className="relative group"
             draggable onDragStart={(e) => { setDrag(p.id); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setDrag(null); setOver(null) }}
             onDragOver={(e) => { e.preventDefault(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setOver({ id: p.id, after: e.clientY > r.top + r.height / 2 }) }}>
+            {p.status === 'approved' && <div className="absolute left-1.5 top-1.5 z-10 w-4 h-4 rounded-full bg-emerald-500 grid place-items-center pointer-events-none"><Check size={10} className="text-ink-950" /></div>}
             {over?.id === p.id && drag && drag !== p.id && <div className={cx('absolute left-0 right-0 h-0.5 bg-gold-400 z-10', over.after ? '-bottom-1.5' : '-top-1.5')} />}
             <button ref={p.id === pid ? active : undefined} onClick={() => onPick(p.id)} data-page={p.id}
               className={cx('w-full rounded border p-1 flex gap-2 items-start text-left', p.id === pid ? 'border-gold-500/70 bg-gold-500/10' : 'border-ink-700 hover:border-ink-500', drag === p.id && 'opacity-40')}>
@@ -176,6 +256,10 @@ function PageStrip({ book, pid, onPick }: { book: Book; pid: string | null; onPi
                 <div className="text-xs font-mono text-ink-100">{p.number}</div>
                 <div className="text-2xs text-ink-500 truncate">{p.header ?? p.template ?? ''}</div>
                 <div className="text-2xs text-ink-500">{p.texts} text{p.texts === 1 ? '' : 's'}{p.has_art ? '' : ' · no art'}</div>
+                <div className={cx('text-2xs flex items-center gap-1', STATUS_TONE[p.status ?? 'draft'])} data-status={p.status}>
+                  {p.status === 'approved' ? <CheckCircle2 size={10} /> : <span className="w-1.5 h-1.5 rounded-full bg-current" />}{STATUS_LABEL[p.status ?? 'draft']}
+                </div>
+                {p.open_comments > 0 && <div className="text-2xs text-gold-300 flex items-center gap-1"><MessageSquare size={10} />{p.open_comments} open</div>}
                 {(!p.layers.paper || !p.layers.art || !p.layers.text) && <div className="text-2xs text-amber-300/80">hidden: {(['paper', 'art', 'text'] as LayerKey[]).filter(k => !p.layers[k]).join(', ')}</div>}
               </div>
             </button>
@@ -200,8 +284,46 @@ function PageStrip({ book, pid, onPick }: { book: Book; pid: string | null; onPi
   )
 }
 
-function Centre({ book, page, html, sel, setSel }: { book: Book; page: BookPage; html: string | undefined; sel: Selection; setSel: (s: Selection) => void }) {
+function Centre({ book, page, html, sel, setSel, cs }: { book: Book; page: BookPage; html: string | undefined; sel: Selection; setSel: (s: Selection) => void; cs: CommentState }) {
   const edit = usePageEdit(book.id, (f: () => Promise<BookPage>) => f())
+  const { data: figs = [] } = useFigures()
+  const aspects = useMemo(() => Object.fromEntries(figs.map(f => [f.name, f.aspect])), [figs])
+  const [askApprove, setAskApprove] = useState<number | null>(null)
+  const approve = (force = false) => edit.mutate(async () => {
+    try { return await bookApi.status(book.id, page.id, 'approved', force) } catch (e) {
+      const c = conflictOf<{ open_comments: number }>(e)
+      if (c?.open_comments) { setAskApprove(c.open_comments); return page }
+      throw e
+    }
+  })
+  const submit = (anchor: Anchor, text: string, apply: boolean) => edit.mutate(async () => {
+    const r = await bookApi.addComment(book.id, page.id, { anchor, text })
+    cs.setActive(r.created)
+    if (apply) { try { cs.setRun((await bookApi.applyComment(book.id, page.id, r.created)).job_id) } catch (e) { toast('error', 'Not applied', (e as Error).message) } }
+    return r
+  })
+  const comment: CommentProps = { on: cs.mode, comments: page.comments, active: cs.active, aspects, pending: cs.pending, setPending: cs.setPending, onSubmit: submit,
+    onPick: (id) => { cs.setActive(id); const c = page.comments.find(x => x.id === id); if (c) setSel(selOf(c)) } }
+  // C toggles comment mode
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'c' || e.key === 'C') { e.preventDefault(); cs.setMode(!cs.mode) }
+      else if (e.key === 'Escape' && cs.mode) { if (cs.pending) cs.setPending(null); else cs.setMode(false) }
+    }
+    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h)
+  }, [cs])
+  // before / after of the last applied comment (while it is still the page's last change)
+  const { data: hist = [] } = usePageHistory(book.id, page.id)
+  const lastSeq = hist.find(h => h.kind === 'page' && !META_ACTIONS.some(m => h.action.startsWith(m)))?.seq  // comment / status steps do not end the review
+  const last = page.comments.filter(c => c.status === 'applied' && c.result?.history_seq).sort((a, b) => (b.result!.history_seq! - a.result!.history_seq!))[0]
+  const [kept, setKept] = useState<string[]>(loadKept)
+  const review = last && last.result?.history_seq === lastSeq && !kept.includes(`${book.id}:${last.id}`) ? last : null
+  const [showBefore, setShowBefore] = useState(false)
+  useEffect(() => setShowBefore(false), [review?.id, page.id])
+  const { data: beforeHtml } = useBookRenderBefore(book.id, page.id, review && showBefore ? review.result!.history_seq! : null)
+  const keep = () => { const k = [...kept, `${book.id}:${review!.id}`].slice(-500); setKept(k); try { localStorage.setItem(KEPT, JSON.stringify(k)) } catch { /* ignore */ } }
   const [addMenu, setAddMenu] = useState(false)
   const toggle = (k: LayerKey, v: boolean) => edit.mutate(() => bookApi.layers(book.id, page.id, { [k]: v }))
   const commitBox = useCallback((id: string, patch: Partial<TextBox>) => edit.mutate(() => bookApi.patchText(book.id, page.id, id, patch)), [book.id, page.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -227,6 +349,8 @@ function Centre({ book, page, html, sel, setSel }: { book: Book; page: BookPage;
         <span className="text-xs text-ink-100 font-mono">Page {page.number}</span>
         <span className="text-2xs text-ink-500 font-mono">{page.id}</span>
         <span className="flex-1" />
+        <button className={cx('btn', cs.mode && 'btn-primary')} onClick={() => cs.setMode(!cs.mode)} aria-pressed={cs.mode} title="Comment mode (C): click any element of the page to pin a comment" data-testid="comment-toggle"><MessageSquarePlus size={12} />Comment</button>
+        {cs.mode && <button className="btn" onClick={() => cs.setPending({ layer: 'page', element: null, x: Math.round(book.page_px[0] / 2), y: 60 })} title="A comment on the page as a whole"><FileText size={12} />Whole page</button>}
         <LayerToggles layers={page.layers} onToggle={toggle} />
         <div className="relative">
           <button className="btn" onClick={() => setAddMenu(m => !m)}><Type size={12} />Add text<ChevronDown size={10} /></button>
@@ -236,29 +360,63 @@ function Centre({ book, page, html, sel, setSel }: { book: Book; page: BookPage;
             </div>
           )}
         </div>
+        <button className={cx('btn', page.status === 'approved' ? 'text-emerald-300 border-emerald-500/50' : '')} onClick={() => approve()} disabled={page.status === 'approved'} title="Approve this page" data-testid="approve"><CheckCircle2 size={12} />{page.status === 'approved' ? 'Approved' : 'Approve'}</button>
         <a className="btn btn-ghost btn-icon" href={`/api/book/books/${book.id}/pages/${page.id}/render`} target="_blank" rel="noreferrer" title="Open the page render in a new tab"><ExternalLink size={12} /></a>
       </div>
-      <div className="flex-1 min-h-0">
-        <BookCanvas book={book} page={page} html={html} sel={sel} onSelect={setSel} onCommitBox={commitBox}
+      {review && (
+        <div className="shrink-0 border-b border-ink-800 bg-emerald-950/40 px-2 h-9 flex items-center gap-2 text-xs" data-testid="before-after">
+          <span className="w-5 h-5 rounded-full bg-emerald-400 text-ink-950 text-[10px] font-bold grid place-items-center">{review.n}</span>
+          <span className="text-emerald-200 truncate">{review.result?.summary}</span>
+          <span className="text-2xs text-ink-500 font-mono shrink-0">{anchorLabel(review.anchor, page)} · v{review.result?.history_seq} · ${(review.result?.cost ?? 0).toFixed(3)}</span>
+          <span className="flex-1" />
+          <div className="flex rounded border border-ink-600 overflow-hidden shrink-0">
+            <button className={cx('h-6 px-2.5 text-2xs', showBefore ? 'bg-ink-700 text-ink-100' : 'text-ink-400 hover:bg-ink-800')} onClick={() => setShowBefore(true)}>Before</button>
+            <button className={cx('h-6 px-2.5 text-2xs border-l border-ink-600', !showBefore ? 'bg-emerald-500/20 text-emerald-200' : 'text-ink-400 hover:bg-ink-800')} onClick={() => setShowBefore(false)}>After</button>
+          </div>
+          <button className="btn btn-sm shrink-0" onClick={keep}><Check size={11} />Keep</button>
+          <button className="btn btn-sm shrink-0" onClick={() => edit.mutate(() => bookApi.revertComment(book.id, page.id, review.id))}><RotateCcw size={11} />Revert</button>
+        </div>
+      )}
+      <div className="flex-1 min-h-0 relative">
+        {showBefore && review && <div className="absolute left-3 top-3 z-40 chip chip-on pointer-events-none">Before comment {review.n}</div>}
+        <BookCanvas book={book} page={page} html={showBefore && review ? (beforeHtml ?? html) : html} comment={showBefore ? undefined : comment} sel={sel} onSelect={setSel} onCommitBox={commitBox}
           onEditText={(box, text) => commitBox(box.id, box.style === 'header' ? { title: text, text: [box.kicker, text].filter(Boolean).join(' · ') } : { text })} />
       </div>
       <div className="h-7 shrink-0 border-t border-ink-800 px-3 flex items-center gap-4 text-2xs text-ink-500">
-        <span>click a box to select · drag to move · corner to resize · double-click to edit · arrows nudge · Delete removes</span>
+        <span>{cs.mode ? 'comment mode · click an element to pin a comment · drag on the painting to mark a region · Esc leaves' : 'click a box to select · drag to move · corner to resize · double-click to edit · arrows nudge · Delete removes'}</span>
         <span className="flex-1" />
-        <span>PageUp / PageDown · ⌘Z undo</span>
+        <span>C comment · PageUp / PageDown · ⌘Z undo</span>
       </div>
+      {askApprove !== null && <ApproveAnyway n={askApprove} onClose={() => setAskApprove(null)} onYes={() => { setAskApprove(null); approve(true) }} />}
     </>
   )
 }
 
-function Inspector({ book, page, sel, setSel }: { book: Book; page: BookPage; sel: Selection; setSel: (s: Selection) => void }) {
+function selOf(c: BookComment): Selection {
+  const a = c.anchor
+  if (a.layer === 'text' && a.element) return { type: 'text', id: a.element }
+  if (a.layer === 'art') return a.element?.startsWith('patch:') ? { type: 'patch', id: a.element.slice(6) } : { type: 'art' }
+  if (a.layer === 'paper') return { type: 'paper' }
+  return null
+}
+
+function Inspector({ book, page, sel, setSel, cs }: { book: Book; page: BookPage; sel: Selection; setSel: (s: Selection) => void; cs: CommentState }) {
   const edit = usePageEdit(book.id, (f: () => Promise<BookPage>) => f())
   const box = sel?.type === 'text' ? page.text.find(t => t.id === sel.id) : undefined
   const toggle = (k: LayerKey, v: boolean) => edit.mutate(() => bookApi.layers(book.id, page.id, { [k]: v }))
+  const patch = sel?.type === 'patch' ? page.art?.patches?.find(p => p.id === sel.id) : undefined
   return (
     <div className="flex flex-col">
-      <LayersList page={page} sel={sel} onSelect={setSel} onToggle={toggle} />
-      {box ? <TextInspector box={box} onPatch={(p) => edit.mutate(() => bookApi.patchText(book.id, page.id, box.id, p))} onDelete={() => { edit.mutate(() => bookApi.deleteText(book.id, page.id, box.id)); setSel(null) }} />
+      <PageStatusControl book={book} page={page} edit={(f) => edit.mutate(f)} />
+      <CommentsPanel book={book} page={page} active={cs.active} run={cs.run} onRun={cs.setRun} edit={(f) => edit.mutate(f)}
+        onPick={(c) => { cs.setActive(c.id); setSel(selOf(c)) }} />
+      <LayersList page={page} sel={sel} onSelect={setSel} onToggle={toggle}
+        onPatch={(id, hidden) => edit.mutate(() => bookApi.patchPatch(book.id, page.id, id, { hidden }))}
+        onRemovePatch={(id) => { edit.mutate(() => bookApi.deletePatch(book.id, page.id, id)); if (sel?.type === 'patch' && sel.id === id) setSel(null) }} />
+      {patch ? <PatchInspector page={page} id={patch.id} onPatch={(hidden) => edit.mutate(() => bookApi.patchPatch(book.id, page.id, patch.id, { hidden }))}
+        onRemove={() => { edit.mutate(() => bookApi.deletePatch(book.id, page.id, patch.id)); setSel(null) }}
+        onComment={() => { cs.setMode(true); cs.setPending({ layer: 'art', element: `patch:${patch.id}`, x: Math.round(patch.x + patch.w / 2), y: Math.round(patch.y + patch.h / 2), rect: { x: patch.x, y: patch.y, w: patch.w, h: patch.h } }) }} />
+        : box ? <TextInspector box={box} onPatch={(p) => edit.mutate(() => bookApi.patchText(book.id, page.id, box.id, p))} onDelete={() => { edit.mutate(() => bookApi.deleteText(book.id, page.id, box.id)); setSel(null) }} />
         : sel?.type === 'art' ? <ArtInspector page={page} book={book} onPatch={(p) => edit.mutate(() => bookApi.art(book.id, page.id, p))} onReplace={(f) => edit.mutate(() => bookApi.replaceArt(book.id, page.id, f))} />
           : <PaperInspector page={page} onPatch={(p) => edit.mutate(() => bookApi.paper(book.id, page.id, p))} onPageNumber={(v) => edit.mutate(() => bookApi.page(book.id, page.id, { page_number: v }))} />}
       <PageHistory bid={book.id} page={page} onRestore={(seq) => edit.mutate(() => bookApi.restore(book.id, page.id, seq))} />

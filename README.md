@@ -166,6 +166,20 @@ figures, texture), and the page's versions. Top: *Export PDF* (print with bleed 
 package*, *PNG*, *Undo* (⌘Z). Spec: `SPEC.md` §11; renderer `engine/book_render.py`; store `backend/book_store.py`;
 routes `backend/book_api.py`; tests `tests/test_book_layers.py` (a synthetic package, never the real book).
 
+**Review and revise.** *Comment* (key C) turns the page into review mode: hover outlines the element a click would
+target (text box, shloka, figure, page number, paper, art, an art patch), a click pins a numbered comment, a drag on
+the painting marks a region, *Whole page* comments on the page. *Apply* (one comment, or *Apply all open*) runs a
+`book_comment` job: Claude patches the anchored text box (strict JSON, inside the page, ≤ ~16 words, no Devanagari),
+picks paper elements by id from the libraries, or Sunburst repaints the marked region of the art into a new
+`art/<page>_v<n>.jpg` (the old file stays). Each apply is one undo step, logged with a summary and its cost in the
+ledger; the canvas shows *Before / After* with *Keep / Revert*. Packages in `dharma-book/2` carry `art.patches`
+(parchment cover-ups over empty boxes the painter left; listed under Art, hide / remove, or comment "repaint into the
+scene"). Pages are Draft / In review / Approved; the top bar shows "N / M approved, K open comments", the page strip
+filters (all / comments / not approved) and jumps to the next page with comments, and *Finish* exports the print PDF
++ package once every page is approved (or after a warning listing the rest). Without keys, text comments fail with a
+clear message and art edits are labelled dry-run placeholders. Routes `backend/book_comments.py`; tests
+`tests/test_book_comments.py` (models mocked).
+
 ## Tests
 
 ```bash

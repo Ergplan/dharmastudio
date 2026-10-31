@@ -32,7 +32,7 @@ function useRailStatus(): Record<string, { tone: Tone; title: string }> {
     silhouettes: { tone: sils.length ? 'ok' : 'idle', title: `${sils.length} in library` },
     export: { tone: jobs.some(j => j.kind === 'export') ? 'busy' : exps.length ? 'ok' : 'idle', title: `${exps.length} exports` },
     motion: { tone: jobs.some(j => j.kind === 'motion_render' || j.kind === 'seedance' || j.kind === 'site_publish') ? 'busy' : 'idle', title: 'Moments, Seedance, QR, Links, Site' },
-    book: { tone: jobs.some(j => j.kind === 'book_pdf') ? 'busy' : 'idle', title: 'The layered book: paper · art · text per page' },
+    book: { tone: jobs.some(j => j.kind === 'book_pdf' || j.kind === 'book_comment') ? 'busy' : 'idle', title: 'The layered book: paper · art · text per page' },
   }
 }
 
