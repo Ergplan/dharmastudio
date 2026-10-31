@@ -19,7 +19,7 @@ TEXT_ROLES = ("script_writer", "prompt_writer", "critic")
 IMAGE_ROLE = "image"
 
 CLAUDE_MODELS = ["claude-sonnet-4-5", "claude-opus-4-1"]
-OPENAI_MODELS = ["gpt-5", "gpt-5-mini"]
+OPENAI_MODELS = ["gpt-5", "gpt-5-mini", "gpt-6.1-sol", "gpt-5.5"]
 IMAGE_MODELS = {"sunburst": "openai", "gemini-nb21": "gemini", "gemini-pro": "gemini"}
 
 ROLE_DEFAULTS = {"script_writer": "claude", "prompt_writer": "openai", "critic": "claude", "image": "sunburst"}
@@ -43,6 +43,8 @@ MODEL_LABELS = {
     "claude-opus-4-1": ("Claude Opus 4.1", "anthropic", "slower, deeper"),
     "gpt-5": ("OpenAI GPT-5", "openai", ""),
     "gpt-5-mini": ("OpenAI GPT-5 mini", "openai", "fast, cheap"),
+    "gpt-6.1-sol": ("OpenAI GPT-6.1 Sol", "openai", "vision; the painted-page text check default"),
+    "gpt-5.5": ("OpenAI GPT-5.5", "openai", "vision; the text check fallback"),
     "sunburst": ("Sunburst (OpenAI)", "openai", "≈ $0.04 per 1536×1024 high image"),
     "gemini-nb21": ("Gemini NB 2.1", "gemini", "≈ $0.03 per image"),
     "gemini-pro": ("Gemini Pro", "gemini", "≈ $0.13 per image"),
@@ -158,6 +160,26 @@ def ask_json(role: str, system: str, user: str, images: list[Path] | None = None
         if fallback is None:
             raise
         return fallback()
+
+
+def ask_json_models(models: list[str], system: str, user: str, images: list[Path] | None = None, fallback: Callable[[], Any] | None = None,
+                    max_tokens: int = 8000) -> tuple[Any, str | None]:
+    """Ask the first model in `models` whose provider has a key; on a provider error try the next one (e.g. the
+    painted-page text check: gpt-6.1-sol, then gpt-5.5). Returns (answer, model used) — (fallback(), None) when none works."""
+    keys = providers()
+    for model in models:
+        prov = provider_of(model)
+        if not keys.get(prov, False):
+            continue
+        try:
+            if prov == "anthropic":
+                return claude_ask_json(system, user, images or [], model=model, max_tokens=max_tokens), model
+            return _openai_ask_json(system, user, images or [], model), model
+        except Exception:  # noqa: BLE001 — try the next model
+            continue
+    if fallback is None:
+        raise RuntimeError(f"no model available among {models}")
+    return fallback(), None
 
 
 def dumps(obj: Any) -> str:

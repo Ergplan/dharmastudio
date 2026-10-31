@@ -90,6 +90,7 @@ class SceneBrief:
     page_number: int | None = None
     age: str | None = None  # None/"auto" = from the chapter
     full_page: bool = False  # a full-page plate for a major revelation (master prompt §6)
+    mode: str | None = None  # painted | shards for this run; None = the page's (or its volume's) mode
 
     @classmethod
     def from_json(cls, d: dict[str, Any]) -> "SceneBrief":
@@ -102,7 +103,8 @@ class SceneBrief:
         age = (d.get("age") or None)
         return cls(chapter_id=int(d["chapter_id"]), action=(d.get("action") or "").strip(), characters=[c.strip() for c in d.get("characters") or [] if c and c.strip()],
                    setting=(d.get("setting") or "").strip(), lines=lines, page_id=d.get("page_id"), page_number=d.get("page_number"),
-                   age=None if age in (None, "", "auto") else age, full_page=bool(d.get("full_page")))
+                   age=None if age in (None, "", "auto") else age, full_page=bool(d.get("full_page")),
+                   mode=d.get("mode") if d.get("mode") in ("painted", "shards") else None)
 
     def to_json(self) -> dict[str, Any]:
         return asdict(self)
