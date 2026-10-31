@@ -307,6 +307,50 @@ def page_gate(session: Session, page: Page) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------
+# page mode: painted (the image model paints the whole page) | shards (the compositor)
+# ---------------------------------------------------------------------------------
+
+PAGE_MODES = ("painted", "shards")
+
+
+def volume_mode(vol: Volume | None) -> str:
+    """A volume's page mode; unset = painted for Volume 1 (the author's decision, 2026-10-31), shards otherwise."""
+    if vol is not None and vol.page_mode in PAGE_MODES:
+        return vol.page_mode
+    return "painted" if (vol is not None and vol.number == 1) else "shards"
+
+
+def page_mode(page: Page) -> str:
+    return page.page_mode if page.page_mode in PAGE_MODES else volume_mode(page.chapter.volume if page.chapter else None)
+
+
+def painted_selected(page: Page) -> dict[str, Any] | None:
+    """The painted candidate chosen for the page (pre-selected by the Director or picked by the author)."""
+    pd = page.painted or {}
+    sel = pd.get("selected_id")
+    return next((c for c in pd.get("candidates") or [] if c.get("id") == sel), None) if sel else None
+
+
+def painted_enhanced_path(page: Page, cand: dict[str, Any]) -> Path:
+    return db.DATA_DIR / "enhanced" / f"painted_{page.id}_{cand.get('id')}.png"
+
+
+def painted_image(page: Page, prefer_enhanced: bool = False) -> tuple[Path | None, str | None]:
+    """(path, url) of the painted page artifact when the page is in painted mode and has one; else (None, None)."""
+    if page_mode(page) != "painted":
+        return None, None
+    c = painted_selected(page)
+    if not c or not c.get("path"):
+        return None, None
+    if prefer_enhanced:
+        enh = painted_enhanced_path(page, c)
+        if enh.exists():
+            return enh, db.media_url(db.rel(enh))
+    p = db.abs_path(c["path"])
+    return (p, db.media_url(c["path"])) if p and p.exists() else (None, None)
+
+
+# ---------------------------------------------------------------------------------
 # render
 # ---------------------------------------------------------------------------------
 
@@ -314,7 +358,10 @@ def page_gate(session: Session, page: Page) -> list[str]:
 def page_html(session: Session, page: Page, lang: str = "en", paper: str = "screen", embed: bool = False, prefer_enhanced: bool = False, canvas_key: str | None = None,
               faces: set | None = None, print_texture: bool = False, items: list | None = None) -> str:
     """One page's <section>. Adds the faces it uses to `faces` (for the document's @font-face rules) and the manuscript
-    layer's placements to `items`."""
+    layer's placements to `items`. A painted-mode page with a chosen painting renders that painting full-bleed."""
+    ppath, purl = painted_image(page, prefer_enhanced)
+    if ppath is not None:
+        return L.painted_page_html(page.number, ppath, purl, L.RenderOptions(lang=lang, paper=paper, embed=embed, print_texture=print_texture))
     ensure_shapes(session, page)
     opts = L.RenderOptions(lang=lang, paper=paper, embed=embed, print_texture=print_texture)
     cv = canvas_view(canvas_for_page(session, page, canvas_key))
@@ -406,6 +453,15 @@ def build_export(session: Session, pages: list[Page], lang: str, paper: str, ups
     cost = 0.0
     if upscale_images:
         for pg in pages:
+            pc = painted_selected(pg) if page_mode(pg) == "painted" else None
+            if pc and pc.get("path"):  # a painted page: upscale the whole page (1024x1536 -> print)
+                src, dst = db.abs_path(pc["path"]), painted_enhanced_path(pg, pc)
+                if src and src.exists() and not dst.exists():
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    r = upscale(src, dst)
+                    cost += float(r.get("cost_usd") or 0.0)
+                    log(f"upscale painted page {pg.number}: {r['tool']} x{r['factor']}")
+                continue
             for p in pg.panels:
                 if not p.selected_candidate_id:
                     continue

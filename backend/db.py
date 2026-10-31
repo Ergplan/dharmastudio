@@ -46,6 +46,9 @@ ADDED_COLUMNS = (
     ("panel", "balloon_shape", "VARCHAR(30)"),
     ("page", "ink_dissolve", "BOOLEAN"),
     ("page", "manuscript", "JSON"),
+    ("volume", "page_mode", "VARCHAR(20)"),
+    ("page", "page_mode", "VARCHAR(20)"),
+    ("page", "painted", "JSON"),
 )
 
 

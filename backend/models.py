@@ -39,6 +39,7 @@ class Volume(Base):
     canvas_id: Mapped[int | None] = mapped_column(ForeignKey("canvas.id"), nullable=True)
     era_default: Mapped[str] = mapped_column(String(40), default="treta")
     typography: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # engine/typography.py setting; None = default
+    page_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)  # painted | shards; None = default (Volume 1 painted)
 
     project: Mapped[Project] = relationship(back_populates="volumes")
     canvas: Mapped["Canvas | None"] = relationship()
@@ -124,6 +125,9 @@ class Page(Base):
     typography_override: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # partial setting over the volume's
     ink_dissolve: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # None = auto (on for calm pages on painted canvases)
     manuscript: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # {auto, verses[], figures[]}; None = auto
+    page_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)  # painted | shards; None = the volume's
+    # painted-page mode: {spec, candidates[{id, path, prompt, attempt, verification, verdict, ...}], selected_id}
+    painted: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     chapter: Mapped[Chapter] = relationship(back_populates="pages")
     panels: Mapped[list["Panel"]] = relationship(back_populates="page", order_by="Panel.n", cascade="all, delete-orphan")

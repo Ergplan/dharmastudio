@@ -1043,6 +1043,19 @@ def page_html(page: PageView, canvas: CanvasView, opts: RenderOptions) -> str:
     return f"<section class='page' data-page='{page.number}' style=\"{texture}\">{svg}<div class='overlay'>{defs}{title}{''.join(caps)}{folio}</div></section>"
 
 
+def painted_page_html(number: int, image_path: Path | None, image_url: str | None, opts: RenderOptions) -> str:
+    """A painted page (painted-page mode): the image model's whole page is the artifact. Placed full-bleed — it covers
+    the trim plus the 3 mm bleed on every side (slice-fit, centred), crop marks in print. No folio or typeset text:
+    the lettering is in the painting and has been proofread."""
+    src = img_data(image_path, 95) if (opts.embed or not image_url) else image_url
+    W, H = PAGE_W + 2 * BLEED, PAGE_H + 2 * BLEED
+    img = (f"<image class='painted' x='{-BLEED}' y='{-BLEED}' width='{W}' height='{H}' preserveAspectRatio='xMidYMid slice' href='{src}'/>" if src else
+           f"<rect x='{-BLEED}' y='{-BLEED}' width='{W}' height='{H}' fill='#efe4c9'/>")
+    svg = (f"<svg xmlns='http://www.w3.org/2000/svg' width='{W}mm' height='{H}mm' viewBox='{-BLEED} {-BLEED} {W} {H}'>"
+           f"{img}{_crop_marks() if opts.print else ''}</svg>")
+    return f"<section class='page painted-page' data-page='{number}' data-mode='painted'>{svg}</section>"
+
+
 def _dissolve_side(poly: list[Point]) -> tuple[Point, Point] | None:
     """The gradient (outer point -> 16 mm inward) on the shard side nearest the page edge, for the ink dissolve."""
     x0, y0, x1, y1 = _bbox(poly)

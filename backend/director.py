@@ -11,6 +11,12 @@ A run, step by step (each step appended to DirectorRun.steps and the job log):
   critic -> deterministic checks + the critic's 10-point test per candidate
   revise -> up to `retries` repaints with the critic's fix_prompt; the best is pre-selected; failures are flagged
   assemble -> callouts set from the plan, page status "review" (never approved by the agent)
+
+Painted-page mode (the page's mode, else its volume's; Volume 1 defaults to painted): after plan + layout, the image
+model paints the WHOLE page in the fixed house style with the box texts lettered in (engine/director/painted.py),
+the critic model transcribes every lettered text, a page passes only if every box text is exact and nothing else is
+lettered, failed pages are repainted with a lettering correction up to `retries` times, and the best painting is
+pre-selected as the page artifact — never approved. "Edit box text" re-runs only the repaint + text check.
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,13 +37,14 @@ from engine.director import agent as A
 from engine.director import chapters as CH
 from engine.director import cover as CV
 from engine.director import guardrails as G
+from engine.director import painted as P
 from engine.director.brief import CharacterInfo, Line, SceneBrief, validate
 
 from . import db, gen, jobs, render
 from .director_models import DirectorCover, DirectorRun
 from .models import Candidate, Chapter, Character, CharacterRef, Page, Panel, Volume
 
-DEFAULTS = {"candidates": 2, "retries": 2, "budget_usd": 3.0, "run_critic": True, "provider": None}
+DEFAULTS = {"candidates": 2, "retries": 2, "budget_usd": 3.0, "run_critic": True, "provider": None, "text_model": None}
 
 
 def utcnow() -> datetime:
@@ -76,7 +84,7 @@ def chapters_grouped(session: Session) -> dict[str, Any]:
         lo, hi = CH.volume_range(v.number)
         title = CH.book_title(v.number, v.title or "")
         chs = sorted(v.chapters, key=lambda c: c.number)
-        out.append({"volume_id": v.id, "volume": v.number, "book": f"Book {CH.NUMBER_WORDS.get(v.number, v.number).title()}", "title": title,
+        out.append({"volume_id": v.id, "volume": v.number, "book": f"Book {CH.NUMBER_WORDS.get(v.number, v.number).title()}", "title": title, "page_mode": render.volume_mode(v),
                     "range": [lo, hi] if lo else None, "chapters": [chapter_summary(session, c) for c in chs]})
     return {"books": out, "has_book": CH.has_book(), "guardrails_sha": G.load().sha256}
 
@@ -115,7 +123,9 @@ def chapter_detail(session: Session, ch: Chapter) -> dict[str, Any]:
     text = mc.text or ""
     return {**s, "manuscript": mc.to_json(), "setting": mc.setting, "paragraphs": [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()],
             "cast": cast_keys(session, mc), "no_manuscript": not text.strip(),
-            "pages_list": [{"id": p.id, "number": p.number, "status": p.status, "panels": len(p.panels)} for p in ch.pages],
+            "pages_list": [{"id": p.id, "number": p.number, "status": p.status, "panels": len(p.panels), "mode": render.page_mode(p), "mode_override": p.page_mode,
+                            "painted_url": render.painted_image(p)[1]} for p in ch.pages],
+            "volume_id": ch.volume_id, "volume_mode": render.volume_mode(ch.volume),
             "next_page_number": next_page_number(ch), "passages": len(passages(text))}
 
 
@@ -133,12 +143,38 @@ def check_brief(session: Session, brief: SceneBrief) -> dict[str, Any]:
     res = validate(brief, mc.text, characters_info(session), age["age"], mc.label)
     res["chapter_age"] = age
     res["manuscript_number"] = mc.manuscript_number
+    mode = effective_mode(session, brief)
+    res["mode"] = mode
+    if mode == "painted":  # every line the author lists becomes one lettered box: at most P.MAX_BOX_WORDS words
+        for i, ln in enumerate(brief.lines, 1):
+            errs = P.check_box(ln.text, None, f"line {i}")
+            if errs:
+                res["errors"] += errs
+                res["ok"] = res["can_paint"] = False
+                if i - 1 < len(res["lines"]):
+                    res["lines"][i - 1]["too_long"] = True
     if brief.page_id:
         pg = session.get(Page, brief.page_id)
         if pg is not None and pg.status == "approved":
             res["errors"].append("This page is approved (frozen): un-approve it on the Pages screen before directing it again.")
             res["ok"] = res["can_paint"] = False
     return res
+
+
+def effective_mode(session: Session, brief: SceneBrief, page: Page | None = None) -> str:
+    """painted | shards for a run: the brief's explicit mode, else the page's (its override, else its volume's)."""
+    if brief.mode in render.PAGE_MODES:
+        return brief.mode
+    if page is None and brief.page_id:
+        page = session.get(Page, brief.page_id)
+    if page is not None:
+        return render.page_mode(page)
+    ch = session.get(Chapter, brief.chapter_id)
+    if ch is not None and brief.page_number:
+        pg = next((p for p in ch.pages if p.number == brief.page_number), None)
+        if pg is not None:
+            return render.page_mode(pg)
+    return render.volume_mode(ch.volume if ch else None)
 
 
 def passages(text: str, words_per_page: int = 180) -> list[str]:
@@ -215,6 +251,13 @@ def is_dry(provider: str) -> bool:
 def estimate_for(session: Session, brief: SceneBrief, settings: dict[str, Any]) -> dict[str, Any]:
     st = {**DEFAULTS, **{k: v for k, v in settings.items() if v is not None}}
     provider = image_provider(st)
+    if effective_mode(session, brief) == "painted":  # one painting per candidate; the critic proofreads each
+        per = 0.0 if is_dry(provider) else providers.estimate_cost_per_image(provider)
+        live = text_check_live(st)
+        est = A.estimate(1, int(st["candidates"]), int(st["retries"]), per, True, llm.is_available("script_writer"), live)
+        est.update(provider=provider, dry_run=is_dry(provider), budget_usd=float(st["budget_usd"]), critic_live=live, planner_live=llm.is_available("script_writer"),
+                   critic_model=text_models(st)[0], planner_model=llm.model_for("script_writer"), mode="painted", pages=1)
+        return est
     panels = 1 if brief.full_page else 4
     if brief.page_id:
         pg = session.get(Page, brief.page_id)
@@ -223,7 +266,7 @@ def estimate_for(session: Session, brief: SceneBrief, settings: dict[str, Any]) 
     per = 0.0 if is_dry(provider) else providers.estimate_cost_per_image(provider)
     est = A.estimate(panels, int(st["candidates"]), int(st["retries"]), per, bool(st["run_critic"]), llm.is_available("script_writer"), llm.is_available("critic"))
     est.update(provider=provider, dry_run=is_dry(provider), budget_usd=float(st["budget_usd"]), critic_live=llm.is_available("critic"), planner_live=llm.is_available("script_writer"),
-               critic_model=llm.model_for("critic"), planner_model=llm.model_for("script_writer"))
+               critic_model=llm.model_for("critic"), planner_model=llm.model_for("script_writer"), mode="shards")
     return est
 
 
@@ -327,6 +370,267 @@ def paint(session: Session, panel: Panel, prompt: str, refs: list[Path], provide
     return cand
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# painted-page mode
+# ---------------------------------------------------------------------------------------------------------------
+
+
+def text_models(st: dict[str, Any]) -> list[str]:
+    """The text-check models in order: the run's choice (default gpt-6.1-sol), then the fallback gpt-5.5."""
+    return [m for m in dict.fromkeys([st.get("text_model") or P.TEXT_MODEL_DEFAULT, P.TEXT_MODEL_FALLBACK]) if m]
+
+
+def text_check_live(st: dict[str, Any]) -> bool:
+    keys = llm.providers()
+    return any(keys.get(llm.provider_of(m), False) for m in text_models(st))
+
+
+def opener_header(session: Session, page: Page, ch: Chapter, mc: CH.ManuscriptChapter) -> str | None:
+    """The chapter header lettered on the chapter's first page ("BOOK ONE · 1 — The Last Night of Lanka")."""
+    if not (page.is_opener or page.number == (ch.pages_from or 1)):
+        return None
+    return P.header_text(ch.volume.number, mc.manuscript_number or ch.number, mc.title or ch.title or "")
+
+
+def painted_cast(session: Session, spec: dict[str, Any]) -> tuple[list[str], list[tuple[str, Path]]]:
+    """Locked looks (the Character table's look paragraphs, as for shards) and primary references of every
+    character on the page."""
+    keys: list[str] = []
+    for p in spec.get("panels") or []:
+        for k in p.get("characters") or []:
+            if k not in keys:
+                keys.append(k)
+    looks: list[str] = []
+    refs: list[tuple[str, Path]] = []
+    for k in keys:
+        c = session.scalar(select(Character).where(Character.form_key == k))
+        if c is None or not c.locked:
+            continue
+        lp = look_paragraph(c.name, c.form_key, c.look)
+        if lp and lp not in looks:
+            looks.append(lp)
+        r = gen.primary_ref(session, c)
+        if r and len(refs) < 4 and r not in [x for _, x in refs]:
+            refs.append((c.name, r))
+    return looks, refs
+
+
+def verify_painted(path: Path, spec: dict[str, Any], dry: bool, model: str | None) -> dict[str, Any]:
+    """The text check of one painting (a placeholder page is not proofread: it is flagged as unproven)."""
+    if dry:
+        exp = P.boxes_of(spec)
+        return {"judged": False, "pass": False, "model": None, "transcription": [], "boxes": [{**b, "found": "", "match": None} for b in exp], "extra": [],
+                "note": "placeholder page (dry run, no image key): the lettering is not proofread — flagged for the author"}
+    return P.verify_text(path, spec, model=model)
+
+
+def _painted_checks(path: Path) -> dict[str, Any]:
+    with Image.open(path) as im:
+        w, h = im.size
+    checks = [{"check": "size", "ok": max(w, h) >= 1536 and min(w, h) >= 1024, "detail": f"{w}×{h}"},
+              {"check": "portrait", "ok": h > w * 1.3, "detail": f"aspect {w / max(1, h):.3f} (wanted 2:3)"}]
+    return {"checks": checks, "ok": all(c["ok"] for c in checks)}
+
+
+def paint_page(session: Session, page: Page, prompt: str, refs: list[Path], provider: str, run: DirectorRun, attempt: int, idx: int, spec: dict[str, Any],
+               correction: str) -> dict[str, Any]:
+    """One painting of the whole page (1024x1536 portrait, quality high), kept in Page.painted.candidates with its
+    full prompt; a dry run letters the box texts on a parchment placeholder with PIL."""
+    dry = is_dry(provider)
+    if dry:
+        png, prov, model, cost, meta = P.placeholder_page(spec, seed=page.id * 100 + attempt * 10 + idx), provider, "placeholder", 0.0, {"size": "1024x1536"}
+    else:
+        res = providers.generate_image(provider, prompt, "portrait", refs, label=f"painted p{page.number} a{attempt}#{idx}", state="voice")
+        png, prov, model, cost, meta = res.png, res.provider, res.model, res.cost_usd, res.meta
+    pd = copy.deepcopy(page.painted or {})
+    cands = list(pd.get("candidates") or [])
+    cid = max([int(c.get("id") or 0) for c in cands] + [0]) + 1
+    d = db.DATA_DIR / "candidates" / f"p{page.id}"
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / f"{page.number:03d}_painted_{cid}.png"
+    path.write_bytes(png)
+    entry = {"id": cid, "path": db.rel(path), "provider": prov, "model": model, "prompt": prompt, "correction": correction, "attempt": attempt, "run_id": run.id,
+             "dry_run": dry, "cost_usd": cost, "meta": {k: v for k, v in (meta or {}).items() if k in ("size", "references")}, "created_at": utcnow().isoformat(timespec="seconds")}
+    cands.append(entry)
+    pd["candidates"] = cands
+    page.painted = pd
+    gen.record_cost(session, prov, cost, f"director:{run.id}:painted:{page.id}:{cid}")
+    return entry
+
+
+def _set_painted(page: Page, **kv: Any) -> None:
+    pd = copy.deepcopy(page.painted or {})
+    pd.update(kv)
+    page.painted = pd
+
+
+def _update_painted_candidate(page: Page, cid: int, **kv: Any) -> None:
+    pd = copy.deepcopy(page.painted or {})
+    for c in pd.get("candidates") or []:
+        if c.get("id") == cid:
+            c.update(kv)
+    page.painted = pd
+
+
+def execute_painted(session: Session, run: DirectorRun, ctx: Any, page: Page, ch: Chapter, mc: CH.ManuscriptChapter, provider: str,
+                    plan: dict[str, Any] | None) -> dict[str, Any]:
+    """Paint the whole page, proofread its lettering, repaint failures with a correction, pre-select the best."""
+    st = run.settings or {}
+    n_cand, retries, budget = int(st.get("candidates", 2)), int(st.get("retries", 2)), float(st.get("budget_usd", 3.0))
+    per_image = 0.0 if is_dry(provider) else providers.estimate_cost_per_image(provider)
+    live = text_check_live(st)
+    if plan is not None:
+        spec = P.spec_from_plan(plan, [], opener_header(session, page, ch, mc))
+    else:
+        spec = copy.deepcopy((page.painted or {}).get("spec") or (run.plan or {}).get("painted") or {})
+    looks0, refs0 = painted_cast(session, spec)  # the locked looks and references as they are now
+    spec["looks"], spec["references"] = looks0, [n for n, _ in refs0]
+    errs = P.validate_spec(spec, mc.text)
+    run.plan = {**(run.plan or plan or {}), "painted": spec}
+    if errs:
+        run.status = "blocked"
+        run.flags = [{"panel": 0, "panel_id": None, "candidate_id": None, "reasons": errs}]
+        page.status = "draft" if page.status == "generating" else page.status
+        _step(session, run, "check", "box text rejected: " + "; ".join(errs)[:400], ctx)
+        session.commit()
+        return {"status": "blocked", "page_id": page.id, "errors": errs}
+    _set_painted(page, spec=spec)
+    page.status = "generating"
+    session.commit()
+    n_boxes = len(P.boxes_of(spec))
+    _step(session, run, "layout", f"painted page {page.number}: {len(spec['panels'])} panels, {n_boxes} lettered boxes" + (f", header “{spec['header']}”" if spec.get("header") else ""), ctx)
+    spent = {"img": 0.0, "text": A.PLAN_USD if (plan is not None and llm.is_available("script_writer")) else 0.0}
+    cand_log: list[dict[str, Any]] = list(run.candidates or [])
+    prompts_log: list[dict[str, Any]] = list(run.prompts or [])
+    flags: list[dict[str, Any]] = []
+    stopped = False
+    correction = ""
+    mine: list[dict[str, Any]] = []
+    try:
+        for attempt in range(retries + 1):
+            prompt = P.build_page_prompt(spec, mc.text, correction)
+            prompts_log.append({"panel": 0, "panel_id": None, "attempt": attempt, "prompt": prompt, "chars": len(prompt), "lint": [], "mode": "painted",
+                                "sections": ["house_style", "typography", "pacing", "safe_area"] + (["header"] if spec.get("header") else []) + ["looks", "panels"] + (["correction"] if correction else []),
+                                "references": spec.get("references") or []})
+            run.prompts = list(prompts_log)
+            _step(session, run, "prompt", f"painted p{page.number} attempt {attempt}: {len(prompt)} chars, refs {spec.get('references') or 'none'}" + (" + lettering correction" if correction else ""), ctx)
+            for i in range(max(1, n_cand)):
+                ctx.check_stop()
+                crit_cost = A.CRITIC_USD if live else 0.0
+                if spent["img"] + spent["text"] + per_image + crit_cost > budget + 1e-9:
+                    raise BudgetExceeded()
+                c = paint_page(session, page, prompt, [p for _, p in refs0], provider, run, attempt, i, spec, correction)
+                spent["img"] += c["cost_usd"]
+                ctx.add_cost(c["cost_usd"])
+                session.commit()
+                path = db.abs_path(c["path"])
+                checks = _painted_checks(path)
+                v = verify_painted(path, spec, c["dry_run"], st.get("text_model"))
+                if v.get("judged"):
+                    spent["text"] += A.CRITIC_USD
+                vd = P.verdict(v)
+                if not checks["ok"]:
+                    vd = {**vd, "pass": False, "reasons": vd["reasons"] + [f"{k['check']}: {k['detail']}" for k in checks["checks"] if not k["ok"]]}
+                _update_painted_candidate(page, c["id"], verification=v, verdict=vd, checks=checks)
+                entry = {"mode": "painted", "panel": 0, "panel_id": None, "candidate_id": c["id"], "page_id": page.id, "path": c["path"], "url": db.media_url(c["path"]),
+                         "attempt": attempt, "checks": checks, "verification": v, "verdict": vd, "dry_run": c["dry_run"], "cost_usd": c["cost_usd"], "correction": correction}
+                mine.append(entry)
+                cand_log.append(entry)
+                run.candidates = copy.deepcopy(cand_log)
+                run.cost_usd = round(spent["img"] + spent["text"], 4)
+                ok_boxes = sum(1 for b in v.get("boxes") or [] if b.get("match"))
+                _step(session, run, "critic", f"painted p{page.number} cand {c['id']}: " + ("PASS" if vd["pass"] else ("unjudged" if not vd["judged"] else "fail")) +
+                      (f" — text {ok_boxes}/{n_boxes} exact, {len(v.get('extra') or [])} extra ({v.get('model')})" if v.get("judged") else ""), ctx)
+            best = max(mine, key=P.rank_key)
+            if best["verdict"]["pass"] or not best["verdict"].get("retry") or attempt == retries:
+                break
+            correction = P.correction_for(best["verification"])
+            _step(session, run, "revise", f"painted p{page.number}: repaint {attempt + 1}/{retries} with a lettering correction: {correction[:220]}", ctx)
+    except BudgetExceeded:
+        run.status, stopped = "budget", True
+        _step(session, run, "budget", f"budget cap ${budget:.2f} reached", ctx)
+    except jobs.Stopped:
+        run.status, stopped = "stopped", True
+        _step(session, run, "stop", "stopped by the author", ctx)
+    if mine:
+        best = max(mine, key=P.rank_key)
+        _set_painted(page, selected_id=best["candidate_id"])
+        for e in cand_log:
+            if e.get("mode") == "painted" and e.get("page_id") == page.id:
+                e["selected"] = e["candidate_id"] == best["candidate_id"]
+        run.candidates = copy.deepcopy(cand_log)
+        if not best["verdict"]["pass"]:
+            flags.append({"panel": 0, "panel_id": None, "candidate_id": best["candidate_id"], "reasons": best["verdict"]["reasons"]})
+        _step(session, run, "select", f"painted p{page.number}: pre-selected painting {best['candidate_id']}" + ("" if best["verdict"]["pass"] else " — FLAGGED for the author"), ctx)
+    else:
+        flags.append({"panel": 0, "panel_id": None, "candidate_id": None, "reasons": ["not painted (" + (run.status if stopped else "no candidate") + ")"]})
+    run.flags = flags
+    run.cost_usd = round(spent["img"] + spent["text"], 4)
+    page.status = "review" if mine else "draft"  # never approved by the agent
+    session.commit()
+    if not stopped:
+        run.status = "done"
+    _step(session, run, "assemble", f"painted page {page.number} → {page.status}; {len(flags)} flag(s) for the author; cost ${run.cost_usd:.4f}", ctx)
+    session.commit()
+    if run.status == "stopped":
+        raise jobs.Stopped()
+    return {"status": run.status, "page_id": page.id, "flags": len(flags), "mode": "painted"}
+
+
+def edit_box_texts(session: Session, page: Page, edits: list[dict[str, Any]]) -> dict[str, Any]:
+    """The author's box-text edits applied to the page spec (and the panels' captions), validated: verbatim and at
+    most P.MAX_BOX_WORDS words. Raises P.BoxTextError with every problem."""
+    pd = page.painted or {}
+    spec = copy.deepcopy(pd.get("spec") or {})
+    if not spec.get("panels"):
+        raise ValueError("this page has no painted spec yet: direct it in painted mode first")
+    for e in edits:
+        pn, bi = int(e.get("panel", 0)), int(e.get("box", 0))
+        panel = next((p for p in spec["panels"] if int(p.get("n", 0)) == pn), None)
+        if panel is None or not (0 <= bi < len(panel.get("boxes") or [])):
+            raise ValueError(f"no box {bi} in panel {pn}")
+        b = panel["boxes"][bi]
+        b["text"] = P.clean_box_text(e.get("text") or "")
+        if "adapted_approved" in e:
+            b["adapted_approved"] = bool(e["adapted_approved"])
+    mc = manuscript_of(page.chapter)
+    errs = P.validate_spec(spec, mc.text)
+    if errs:
+        raise P.BoxTextError(errs)
+    _set_painted(page, spec=spec)
+    by_n = {p.n: p for p in page.panels}
+    for p in spec["panels"]:
+        row = by_n.get(int(p.get("n", 0)))
+        if row is None:
+            continue
+        narr = next((b["text"] for b in p.get("boxes") or [] if b.get("kind") != "speech"), "")
+        talk = next((b for b in p.get("boxes") or [] if b.get("kind") == "speech"), None)
+        if (narr, talk["text"] if talk else "") != (row.caption_en or "", row.balloon_en or ""):
+            row.caption_hi, row.balloon_hi, row.hi_is_draft = "", "", False
+        row.caption_en, row.balloon_en = narr, talk["text"] if talk else ""
+        row.speaker = talk.get("speaker") if talk else None
+    return spec
+
+
+def reverify(session: Session, page: Page, cid: int, model: str | None) -> dict[str, Any]:
+    """Re-run only the text check on one stored painting (no repaint)."""
+    pd = page.painted or {}
+    c = next((x for x in pd.get("candidates") or [] if x.get("id") == cid), None)
+    if c is None:
+        raise ValueError("painting not found")
+    v = verify_painted(db.abs_path(c["path"]), pd.get("spec") or {}, bool(c.get("dry_run")), model)
+    vd = P.verdict(v)
+    _update_painted_candidate(page, cid, verification=v, verdict=vd)
+    return {"verification": v, "verdict": vd}
+
+
+def j_painted(page: Page) -> dict[str, Any]:
+    pd = page.painted or {}
+    return {"page_id": page.id, "page_number": page.number, "mode": render.page_mode(page), "mode_override": page.page_mode, "status": page.status,
+            "spec": pd.get("spec") or None, "boxes": P.boxes_of(pd.get("spec") or {}), "selected_id": pd.get("selected_id"),
+            "candidates": [{**{k: v for k, v in c.items() if k != "prompt"}, "url": db.media_url(c.get("path")), "prompt_chars": len(c.get("prompt") or "")} for c in pd.get("candidates") or []]}
+
+
 def execute_run(session: Session, run: DirectorRun, ctx: Any) -> dict[str, Any]:
     st = run.settings or {}
     brief = SceneBrief.from_json(run.brief)
@@ -353,6 +657,10 @@ def execute_run(session: Session, run: DirectorRun, ctx: Any) -> dict[str, Any]:
         _step(session, run, "check", "page is approved (frozen)", ctx)
         return {"status": "blocked"}
     run.page_id, run.page_number = page.id, page.number
+    mode = "painted" if st.get("repaint_only") else effective_mode(session, brief, page)
+    run.settings = {**st, "mode": mode}
+    if st.get("repaint_only"):  # "Edit box text": the stored page spec, repainted and proofread (no re-plan)
+        return execute_painted(session, run, ctx, page, ch, mc, provider, None)
     infos = {i.form_key: i for i in characters_info(session)}
     names = {k: infos[k].name for k in brief.characters if k in infos}
 
@@ -368,6 +676,8 @@ def execute_run(session: Session, run: DirectorRun, ctx: Any) -> dict[str, Any]:
     panels = write_plan(session, page, plan)
     session.commit()
     _step(session, run, "layout", f"page {page.number}: {len(panels)} panels written, shapes cut by hierarchy (beat {page.beat})", ctx)
+    if mode == "painted":
+        return execute_painted(session, run, ctx, page, ch, mc, provider, plan)
 
     flags: list[dict[str, Any]] = []
     cand_log: list[dict[str, Any]] = list(run.candidates or [])

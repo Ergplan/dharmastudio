@@ -86,7 +86,7 @@ def j_chapter(c: Chapter, brief: bool = False) -> dict[str, Any]:
 def j_volume(v: Volume) -> dict[str, Any]:
     return {"id": v.id, "project_id": v.project_id, "number": v.number, "title": v.title, "canvas_id": v.canvas_id, "canvas_key": v.canvas.key if v.canvas else None,
             "era_default": v.era_default, "suggested_canvas_keys": SUGGESTED.get(v.number, []), "chapters": [j_chapter(c, brief=True) for c in v.chapters],
-            "typography": render.volume_typography(v)}
+            "typography": render.volume_typography(v), "page_mode": render.volume_mode(v)}
 
 
 def j_ref(r: CharacterRef) -> dict[str, Any]:
@@ -119,9 +119,11 @@ def j_page(session: Session, pg: Page) -> dict[str, Any]:
     sel = next((p for p in pg.panels if p.selected_candidate_id), None)
     thumb = session.get(Candidate, sel.selected_candidate_id) if sel else None
     arts = pg.artifacts or {}
-    return {"id": pg.id, "chapter_id": pg.chapter_id, "number": pg.number, "beat": pg.beat or look.beat, "beat_explicit": pg.beat, "status": pg.status,
+    _pp, painted_url = render.painted_image(pg)
+    return {"id": pg.id, "chapter_id": pg.chapter_id, "number": pg.number, "page_mode": render.page_mode(pg), "page_mode_override": pg.page_mode,
+            "painted": {"url": painted_url, "selected_id": (pg.painted or {}).get("selected_id"), "candidates": len((pg.painted or {}).get("candidates") or [])} if pg.painted else None, "beat": pg.beat or look.beat, "beat_explicit": pg.beat, "status": pg.status,
             "canvas_override": override.key if override else None, "marginalia": pg.marginalia or [], "seed": pg.seed, "is_opener": pg.is_opener, "epigraph": pg.epigraph, "epigraph_hi": pg.epigraph_hi,
-            "balance": render.balance(session, pg), "thumb": db.media_url(thumb.path) if thumb else None, "artifact": arts.get("en"), "artifacts": arts,
+            "balance": render.balance(session, pg), "thumb": painted_url or (db.media_url(thumb.path) if thumb else None), "artifact": arts.get("en"), "artifacts": arts,
             "gate": {"ok": not unlocked, "unlocked": unlocked}, "look": look.__dict__, "typography_override": pg.typography_override or None, "ink_dissolve": pg.ink_dissolve, "manuscript": pg.manuscript or None,
             "typography": render.page_typography(pg).summary(), "panels": [j_panel(session, p) for p in pg.panels]}
 
