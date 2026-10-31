@@ -9,9 +9,16 @@ on:
 permissions:
   contents: write
 
+# one build at a time per branch; a newer push waits instead of cancelling a build that is publishing the release
+concurrency:
+  group: macos-app-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
-    runs-on: macos-14            # Apple Silicon (arm64): M1 and later
+    # Apple Silicon (arm64): M1 and later. macos-14 images are in scheduled brownouts before their retirement on
+    # 2026-11-02 (those runs were "cancelled" after a few seconds with no steps); macos-15 is the supported image.
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +90,7 @@ jobs:
           curl -sf "${URL}api/app/version"; echo
           curl -sf "${URL}api/pages?chapter_id=1" | python3 -c "import sys,json;d=json.load(sys.stdin);n=sum(len(p['panels']) for p in d);c=sum(len(x['candidates']) for p in d for x in p['panels']);print(len(d),'pages',n,'panels',c,'candidates');assert len(d)==10 and n==32 and c==64"
           curl -sf "${URL}api/pages/1/render?lang=hi" | grep -q "DevSerif" && echo "Hindi render ok"
+          curl -sf "${URL}api/art-director/painted/style" | python3 -c "import sys,json;s=json.load(sys.stdin);assert s['house_style'].startswith('Hindu graphic novel.') and s['max_box_words']==14;print('painted style ok')"
           # motion: the bundled ffmpeg and the QR decoder must work inside the packaged app
           curl -sf "${URL}api/motion/health" | python3 -c "import sys,json;h=json.load(sys.stdin);print('motion health',h);assert h['ffmpeg']['ok'] and h['zxing']"
           # keys: Keychain write/read through the app (non-fatal: CI keychains can be locked)
