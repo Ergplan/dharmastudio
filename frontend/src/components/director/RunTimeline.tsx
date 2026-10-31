@@ -6,6 +6,7 @@ import { mediaUrl } from '@/api/client'
 import { useEditor } from '@/store/editor'
 import type { ID } from '@/api/types'
 import { useGuardrails, useRun, useStopRun, type Run, type RunCandidate } from './api'
+import { PaintedRunBlock } from './Painted'
 
 const STEP_TONE: Record<string, string> = {
   check: 'text-ink-300', plan: 'text-sky-300', layout: 'text-indigo-300', prompt: 'text-violet-300', critic: 'text-amber-300',
@@ -26,6 +27,7 @@ export function RunTimeline({ runId, onPickRun, onReuse }: { runId: ID | null; o
   if (isLoading || !run) return <Spinner />
   const active = run.status === 'running' || run.status === 'queued'
   const panels = run.plan?.panels ?? []
+  const painted = run.settings?.mode === 'painted'
   return (
     <div className="h-full overflow-auto p-4 flex flex-col gap-4 text-xs [&>*]:shrink-0">
       <div className="flex items-center gap-2 flex-wrap">
@@ -63,14 +65,14 @@ export function RunTimeline({ runId, onPickRun, onReuse }: { runId: ID | null; o
       {run.flags.length > 0 && run.kind === 'page' && (
         <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-2xs text-amber-100">
           <div className="flex items-center gap-1.5 font-medium mb-1"><Flag size={11} />Flagged for the author — never silently accepted</div>
-          {run.flags.map((f, i) => <div key={i}>panel {f.panel}: {(f.reasons ?? []).slice(0, 3).join('; ')}</div>)}
+          {run.flags.map((f, i) => <div key={i}>{painted ? 'page' : `panel ${f.panel}`}: {(f.reasons ?? []).slice(0, 3).join('; ')}</div>)}
         </div>
       )}
 
       {panels.length > 0 && (
-        <div className="flex items-center gap-2 text-2xs text-ink-400"><span className="label">Plan</span>source: <span className="text-ink-200">{run.plan?.source}</span>· beat {run.plan?.page_beat} · {panels.length} panels</div>
+        <div className="flex items-center gap-2 text-2xs text-ink-400"><span className="label">Plan</span>source: <span className="text-ink-200">{run.plan?.source}</span>· beat {run.plan?.page_beat} · {panels.length} panels{painted ? ' · painted page' : ''}</div>
       )}
-      {panels.map(p => <PanelBlock key={p.n} run={run} n={p.n} />)}
+      {painted ? <PaintedRunBlock run={run} onPickRun={onPickRun} /> : panels.map(p => <PanelBlock key={p.n} run={run} n={p.n} />)}
     </div>
   )
 }

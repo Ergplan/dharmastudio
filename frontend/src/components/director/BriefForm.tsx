@@ -6,6 +6,7 @@ import { useCharacters, useApiMutation, type JobResp } from '@/api/hooks'
 import { api } from '@/api/client'
 import { toast } from '@/store/toasts'
 import { AGE_TONE, SWATCH, type Age, type Brief, type BriefCheck, type DChapterDetail, type Estimate, type RunSettings } from './api'
+import { PageModeControl } from './Painted'
 
 const AGES: Age[] = ['treta', 'dwapara', 'kali']
 
@@ -50,6 +51,8 @@ export function BriefForm({ ch, brief, setBrief, check, est, settings, setSettin
           {ch.pages_list.map(p => <option key={p.id} value={p.id} disabled={p.status === 'approved'}>page {p.number} · {p.status}{p.panels ? ` · ${p.panels} panels` : ''}</option>)}
         </select>
       </Field>
+
+      <PageModeControl ch={ch} brief={brief} />
 
       <Field label="Exact action" hint={<span className="normal-case tracking-normal text-ink-500">what happens in this illustration</span>}>
         <textarea className="textarea min-h-[3.5rem]" value={brief.action} placeholder="e.g. Kalki steps out of the tent while Ravana speaks from every screen" onChange={(e) => set({ action: e.target.value })} />
@@ -116,6 +119,7 @@ export function BriefForm({ ch, brief, setBrief, check, est, settings, setSettin
                 <select className="select h-6 w-auto text-2xs" value={ln.kind} onChange={(e) => set({ lines: brief.lines.map((x, j) => j === i ? { ...x, kind: e.target.value as 'dialogue' | 'narration' } : x) })}><option value="dialogue">dialogue</option><option value="narration">narration</option></select>
                 {ln.kind === 'dialogue' && <input className="input h-6 w-28 text-2xs" placeholder="speaker" value={ln.speaker ?? ''} onChange={(e) => set({ lines: brief.lines.map((x, j) => j === i ? { ...x, speaker: e.target.value || null } : x) })} />}
                 {c && <span className={cx('chip', c.verbatim ? 'border-emerald-500/50 text-emerald-300' : c.adapted_approved ? 'border-amber-500/50 text-amber-300' : 'border-red-500/60 text-red-300')}>{c.verbatim ? <CheckCircle2 size={9} /> : <AlertTriangle size={9} />}{c.status}</span>}
+                {c?.too_long && <span className="chip border-red-500/60 text-red-300" title="A painted narration box holds at most 14 words: split this line into two"><AlertTriangle size={9} />over 14 words</span>}
                 <button className="btn btn-ghost btn-sm btn-icon ml-auto" onClick={() => set({ lines: brief.lines.filter((_, j) => j !== i) })}><X size={11} /></button>
               </div>
               <textarea className="textarea text-2xs min-h-[2.25rem]" value={ln.text} onChange={(e) => set({ lines: brief.lines.map((x, j) => j === i ? { ...x, text: e.target.value } : x) })} />
@@ -157,12 +161,16 @@ export function BriefForm({ ch, brief, setBrief, check, est, settings, setSettin
         </div>
         <div className="flex items-center gap-2 text-2xs text-ink-300">
           <select className="select h-6 w-auto text-2xs" value={settings.provider ?? ''} onChange={(e) => setSettings({ ...settings, provider: e.target.value || null })}><option value="">image: project default</option><option value="sunburst">Sunburst</option><option value="gemini-nb21">Gemini NB 2.1</option><option value="gemini-pro">Gemini Pro</option></select>
-          <label className="flex items-center gap-1"><input type="checkbox" checked={settings.run_critic} onChange={(e) => setSettings({ ...settings, run_critic: e.target.checked })} />critic</label>
+          {est?.mode === 'painted'
+            ? <select className="select h-6 w-auto text-2xs" title="Model that proofreads the painted lettering (falls back to gpt-5.5)" value={settings.text_model ?? ''} onChange={(e) => setSettings({ ...settings, text_model: e.target.value || null })}><option value="">text check: gpt-6.1-sol</option><option value="gpt-5.5">text check: gpt-5.5</option><option value="gpt-5">text check: gpt-5</option><option value="claude-opus-4-1">text check: Claude Opus 4.1</option></select>
+            : <label className="flex items-center gap-1"><input type="checkbox" checked={settings.run_critic} onChange={(e) => setSettings({ ...settings, run_critic: e.target.checked })} />critic</label>}
         </div>
         {est && (
           <div className="text-2xs text-ink-400 font-mono leading-4">
-            ≈ {est.panels} panels × {settings.candidates} = {est.images} images · <span className="text-ink-200">${est.usd.toFixed(2)}</span> (worst ${est.usd_worst.toFixed(2)} with revisions) · {est.provider}{est.dry_run ? ' · DRY RUN (no key)' : ''}
-            <br />planner {est.planner_model}{est.planner_live ? '' : ' (no key → deterministic)'} · critic {est.critic_model}{est.critic_live ? '' : ' (no key → flagged for you)'}
+            {est.mode === 'painted'
+              ? <>painted page × {settings.candidates} = {est.images} paintings · <span className="text-ink-200">${est.usd.toFixed(2)}</span> (worst ${est.usd_worst.toFixed(2)} with {settings.retries} repaints) · {est.provider}{est.dry_run ? ' · DRY RUN (no key)' : ''}</>
+              : <>≈ {est.panels} panels × {settings.candidates} = {est.images} images · <span className="text-ink-200">${est.usd.toFixed(2)}</span> (worst ${est.usd_worst.toFixed(2)} with revisions) · {est.provider}{est.dry_run ? ' · DRY RUN (no key)' : ''}</>}
+            <br />planner {est.planner_model}{est.planner_live ? '' : ' (no key → deterministic)'} · {est.mode === 'painted' ? 'text check' : 'critic'} {est.critic_model}{est.critic_live ? '' : ' (no key → flagged for you)'}
           </div>
         )}
         <button className="btn btn-primary h-10 text-sm justify-center" disabled={busy || !check?.can_paint} onClick={onDirect} title={check?.can_paint ? 'Plan, paint, critique and assemble this page' : 'Fix the brief first'}>
