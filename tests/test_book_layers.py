@@ -296,8 +296,12 @@ def test_export_package_roundtrip(client, book):
 
 @pytest.mark.skipif(_chromium() is None, reason="no Chromium to render the PDF")
 @pytest.mark.parametrize("paper,size_mm", [("print", (176.0, 261.0)), ("screen", (170.0, 255.0))])
-def test_pdf_export(client, book, paper, size_mm):
+def test_pdf_export(client, book, paper, size_mm, monkeypatch):
     from pypdf import PdfReader
+
+    from backend import book_api
+
+    monkeypatch.setattr(book_api, "PDF_CHUNK", 2)  # a long book renders in parts that are joined: exercise the join
 
     r = client.post(f"{B}/books/{book['id']}/export/pdf", json={"paper": paper})
     assert r.status_code == 202
@@ -311,6 +315,7 @@ def test_pdf_export(client, book, paper, size_mm):
         assert abs(w - size_mm[0]) < 0.6 and abs(h - size_mm[1]) < 0.6, (w, h)
     text = rd.pages[1].extract_text() + rd.pages[2].extract_text()
     assert "Alpha narration" in text and "Beta speaks" in text  # real, searchable text
+    assert "Gamma modern narration" in rd.pages[3].extract_text()  # the second part, in order
     assert client.get(j["result"]["url"]).status_code == 200
 
 

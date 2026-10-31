@@ -724,34 +724,58 @@ def page_png(bid: str, pid: str, paper: str = "screen") -> Response:
 # ---------------------------------------------------------------------------------
 
 
+PDF_CHUNK = 6  # pages per headless-Chrome pass: a whole book in one pass exhausts the renderer's memory
+
+
 def h_book_pdf(ctx: jobs.Ctx, params: dict[str, Any]) -> dict[str, Any]:
+    """The whole book (cover + pages in order) as one PDF. Rendered in chunks of PDF_CHUNK pages, then joined."""
+    import pikepdf
+
     from engine.comic.layout import render_pdf
 
     bid = str(params["book_id"])
     paper = "print" if params.get("paper") != "screen" else "screen"
+    cover = bool(params.get("cover", True))
     b = S.load_book(bid)
     ps = S.pages(bid)
     bdir = S.book_dir(bid)
     res = ScreenResources("file", bdir, S.assets_dir()) if paper == "screen" else file_resources(bid)
-    ctx.log(f"{len(ps)} pages + cover, {paper}")
-    ctx.progress(done=0, total=3)
-    htm = R.book_document(b, ps, res, paper, cover=bool(params.get("cover", True)))
-    ctx.progress(done=1, total=3)
     out = bdir / "exports"
     out.mkdir(exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     pdf = out / f"{S._slug(b.get('title', 'book'))}-{paper}-{stamp}.pdf"
-    render_pdf(htm, pdf, progress=lambda f, m: ctx.log(m))
-    ctx.progress(done=2, total=3)
-    if paper == "print":
-        try:
-            from engine.comic.proof import compress_pdf
+    chunks = [ps[i:i + PDF_CHUNK] for i in range(0, len(ps), PDF_CHUNK)] or [[]]
+    ctx.log(f"{len(ps)} pages{' + cover' if cover else ''}, {paper}, {len(chunks)} part(s)")
+    work = Path(tempfile.mkdtemp(prefix="pdf-", dir=out))
+    try:
+        parts = []
+        for k, chunk in enumerate(chunks):
+            ctx.check_stop()
+            ctx.progress(done=k, total=len(chunks) + 1)
+            part = work / f"part-{k:03d}.pdf"
+            htm = R.book_document(b, chunk, res, paper, cover=cover and k == 0, first_number=k * PDF_CHUNK + 1)
+            render_pdf(htm, part, progress=lambda f, m: ctx.log(m))
+            if paper == "print":
+                try:
+                    from engine.comic.proof import compress_pdf
 
-            compress_pdf(pdf)
-        except Exception as exc:  # noqa: BLE001
-            ctx.log(f"compress skipped: {exc}")
-    pdf.with_suffix(".html").unlink(missing_ok=True)
-    n = len(ps) + (1 if params.get("cover", True) else 0)
+                    compress_pdf(part)
+                except Exception as exc:  # noqa: BLE001
+                    ctx.log(f"compress skipped: {exc}")
+            parts.append(part)
+            ctx.log(f"part {k + 1}/{len(chunks)}: pages {k * PDF_CHUNK + 1}-{k * PDF_CHUNK + len(chunk)}")
+        with pikepdf.new() as dst:
+            for part in parts:
+                with pikepdf.open(part) as src:
+                    dst.pages.extend(src.pages)
+            dst.docinfo["/Title"] = str(b.get("title") or "Book")
+            if b.get("author"):
+                dst.docinfo["/Author"] = str(b["author"])
+            dst.save(pdf)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    ctx.progress(done=len(chunks) + 1, total=len(chunks) + 1)
+    n = len(ps) + (1 if cover else 0)
     w, h = R.page_size_mm(b, paper)
     ctx.log(f"wrote {pdf.name}: {n} pages at {w} x {h} mm")
     return {"pdf": db.rel(pdf), "url": db.media_url(db.rel(pdf)), "pages": n, "paper": paper, "size_mm": [w, h], "bytes": pdf.stat().st_size}
@@ -788,8 +812,3 @@ def list_exports(bid: str) -> list[dict[str, Any]]:
                 out.append({"name": f.name, "url": db.media_url(db.rel(f)), "bytes": f.stat().st_size, "kind": f.suffix.lstrip("."),
                             "modified": datetime.fromtimestamp(f.stat().st_mtime, timezone.utc).isoformat(timespec="seconds")})
     return out
-
-
-def install(app: Any) -> None:
-    """Include the router (before /media and the SPA catch-all)."""
-    app.include_router(router)

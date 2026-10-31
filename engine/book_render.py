@@ -376,8 +376,14 @@ def _text_box_html(t: dict[str, Any], g: Geo, res: Resources, card_url: str) -> 
         title = t.get("title") if t.get("title") is not None else t.get("text")
         kick = (f"<div class='kicker' style=\"font-family:'{d['kicker_font']}';font-weight:600;font-size:{g.mm(float(t.get('kicker_size') or d['kicker_size']))};"
                 f"color:{d['kicker_color']}\">{_text_html(kicker)}</div>") if kicker else ""
+        # a header title sits on one line: shrink it to the card's width (the author can still set a size)
+        widest = max((text_px(x, fam, size) * 1.04 for x in str(title or "").split("\n")), default=0.0)
+        avail = max(40.0, w - 68)
+        if widest > avail:
+            k = avail / widest
+            font = f"font-family:'{fam}';font-weight:{weight};font-size:{g.mm(size * k)};line-height:{g.mm(line * k)};color:{color};text-align:{align};white-space:nowrap;"
         body = f"{kick}<div class='title' style=\"{font}\">{_text_html(title)}</div>"
-        inner = f"<div class='tb-in' style='padding:{g.mm(22)} {g.mm(34)};text-align:{align}'>{body}</div>"
+        inner = f"<div class='tb-in' style='padding:{g.mm(18)} {g.mm(34)};text-align:{align}'>{body}</div>"
         cls = "tb tb-card tb-header"
         bg = f"background-image:url('{card_url}');" if card_url else ""
         return f"<div class='{cls}' data-id='{tid}' data-kind='{kind}' style=\"{pos}{bg}\"><div class='rule' style='inset:{g.mm(9)}'></div>{inner}</div>", ""
@@ -536,8 +542,9 @@ def page_document(book: dict[str, Any], page: dict[str, Any], res: Resources, pa
     return document(book, [page_html(book, page, res, paper, number)], [page], res, paper, f"{book.get('title', '')} · {page.get('id')}", extra_css)
 
 
-def book_document(book: dict[str, Any], pages: list[dict[str, Any]], res: Resources, paper: str = "print", cover: bool = True) -> str:
-    secs = ([cover_html(book, res, paper)] if cover else []) + [page_html(book, p, res, paper, i + 1) for i, p in enumerate(pages)]
+def book_document(book: dict[str, Any], pages: list[dict[str, Any]], res: Resources, paper: str = "print", cover: bool = True, first_number: int = 1) -> str:
+    """The cover (optional) and `pages`, numbered from `first_number` (a long book is rendered in chunks)."""
+    secs = ([cover_html(book, res, paper)] if cover else []) + [page_html(book, p, res, paper, first_number + i) for i, p in enumerate(pages)]
     return document(book, secs, pages, res, paper, str(book.get("title") or "Book"))
 
 
