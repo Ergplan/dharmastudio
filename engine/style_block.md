@@ -4,10 +4,11 @@ Prefixed to every Sunburst prompt and every Seedance brief. Edit here, nowhere e
 
 ## Fixed style
 
-Heightened cinematic in the Final Fantasy register (Advent Children, FF7 Rebirth cutscenes): physically based light,
-real cloth, water, smoke and fire; idealised human proportions, slightly painterly skin, eyes with more depth than life;
-anamorphic 2.39:1 framing, shallow depth of field, cinematic lenses; flares only where fire or gold justifies them.
-Not photoreal, never cartoon. No on-screen text, no lettering, no logos, no Devanagari. No likeness of any living person.
+Hindu graphic novel. Epic mythic graphic-novel page rendered in a richly textured parchment-and-ink style, with torn panel
+edges, cinematic firelight, storm-dark skies, burning Lanka, layered narration boxes, and serif typography.
+(The author's house style, verbatim — the constant in engine/director/painted.py HOUSE_STYLE, which every prompt uses.
+Painted pages letter their narration boxes in the image; shard panels and Seedance clips carry no text.)
+No likeness of any living person.
 
 ## Era palettes
 

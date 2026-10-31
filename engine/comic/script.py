@@ -1,8 +1,9 @@
 """The prompt recipe. Every image prompt is built in layers - STYLE, GRADE, LIGHT, CAMERA, SCALE RULE, WORLD, DUEL,
 character LOOKS, AVOID, SCENE - so the look is the same on every page and the script only supplies the scene.
 
-Reverse-engineered from the approved Rameshwaram reference (2026-10-30) and merged with the author's art-direction
-prompt for the sample spreads (engine/art_direction.md §A): manuscript realism and the amber/copper grade.
+STYLE is the author's house style (engine/director/painted.py HOUSE_STYLE, verbatim), adopted 2026-10-31 in place of
+the earlier cinematic-fantasy register; the grade, light, camera and scale rules come from the approved Rameshwaram
+reference and engine/art_direction.md §A.
 Character looks come from the Character table (the lock), not from prose here.
 """
 
@@ -11,6 +12,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from engine.director.painted import HOUSE_STYLE
+
 from .visual_logic import infer_scale
 
 STATES = ("quiet", "rising", "peak", "ego", "knowledge", "voice")
@@ -18,15 +21,13 @@ BEATS = ("calm", "tension", "action", "revelation", "hex")
 SCALES = ("EWS", "WS", "MWS", "MS", "MCU", "CU", "ECU")
 OVERFRAME = 0.30  # shards are cropped at layout, so panels are generated with 30% extra picture
 
+# The author's house style (engine/director/painted.py), verbatim — the same sentence opens every painted page. A shard
+# panel is one picture cut into the page, so the studio letters its boxes afterwards: no text in the panel image.
 COMIC_STYLE = (
-    "An ancient Indian illuminated historical manuscript brought to life through photorealistic cinematic illustration, "
-    "in the epic cinematic fantasy register (Advent Children, FF7 Rebirth cutscene still): ultra-detailed digital "
-    "painting with smooth airbrushed rendering and crisp edges, physically based light, volumetric smoke and god-rays, "
-    "physically plausible skin pores, hair, textiles, bronze, gold, weapons, stone architecture, ocean water, fire and "
-    "smoke, atmospheric perspective, idealised proportions with natural anatomy and believable expressions, eyes with "
-    "more depth than life, HDR glow on fire and gold. Epic historical cinema quality: not photoreal, never cartoon, not "
-    "anime, not glossy video-game art, not flat digital or generic fantasy illustration. Absolutely no text, lettering, "
-    "captions, borders or logos. "
+    HOUSE_STYLE + " This prompt paints ONE panel of such a page: the picture only, at true scale, with physically based "
+    "light, volumetric smoke and firelight, natural anatomy and believable expressions; never cartoon, not anime, not "
+    "glossy video-game art. The studio letters the narration boxes afterwards, so absolutely no text, lettering, "
+    "captions, borders or logos in this image. "
 )
 COMIC_GRADE = (
     "Grade: complementary colour grade pushed to the ceiling with warm amber and copper for Lanka, deep turquoise and "

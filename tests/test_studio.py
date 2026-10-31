@@ -135,8 +135,9 @@ def test_scene_rewrite_fallback(client):
 def test_prompt_recipe(client, session):
     rama_panel = session.scalar(select(Panel).where(Panel.characters == ["rama"]))
     p = client.get(f"/api/panels/{rama_panel.id}/prompt").json()
-    for key in ("illuminated historical manuscript", "warm amber and copper", "Proportion rule", "Avoid:", "Rama, locked look", "Palette:", "SCENE:"):
+    for key in ("Hindu graphic novel. Epic mythic graphic-novel page", "warm amber and copper", "Proportion rule", "Avoid:", "Rama, locked look", "Palette:", "SCENE:"):
         assert key in p["prompt"]
+    assert "Advent Children" not in p["prompt"] and "FF7" not in p["prompt"]
     assert p["reference_names"] == ["Rama"]
 
 

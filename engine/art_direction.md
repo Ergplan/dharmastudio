@@ -9,8 +9,8 @@ Cinematic realism: ultra-detailed, physically plausible skin pores, hair, textil
 architecture, ocean water, fire, smoke, atmospheric perspective, volumetric light and shadow. Grade: warm amber
 and copper for Lanka; deep turquoise and midnight blue underwater; restrained glowing highlights. Natural anatomy,
 believable expressions. Epic historical cinema quality — not cartoon, anime, glossy video-game art, or generic
-fantasy illustration. (Merged with the Final Fantasy-register recipe already in script.py: the FF register gives
-the idealised proportions and volumetric light; this gives the manuscript realism and the amber/copper grade.)
+fantasy illustration. (Since 2026-10-31 COMIC_STYLE opens with the author's house style — engine/director/painted.py
+HOUSE_STYLE, verbatim — which replaced the earlier cinematic-fantasy register.)
 AVOID list (negative guidance in every prompt): artificial plastic skin, overly saturated neon colours, modern
 buildings, European medieval castles, extra limbs, wrong number of heads, random symbols, any text.
 
