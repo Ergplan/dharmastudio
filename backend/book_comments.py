@@ -665,16 +665,42 @@ def apply_all(bid: str, pid: str, session: Session = A.Sess()) -> dict[str, Any]
     return _submit(session, bid, pid, ids, f"{len(ids)} comments · page {S.number_of(book, pid)}")
 
 
+# history actions that only touch comments or the review status (they do not change the picture)
+META_ACTIONS = ("add comment", "edit comment", "dismiss comment", "reopen comment", "delete comment", "status:")
+
+
+def is_meta(action: str) -> bool:
+    return str(action or "").startswith(META_ACTIONS)
+
+
 @router.post("/books/{bid}/pages/{pid}/comments/{cid}/revert")
 def revert(bid: str, pid: str, cid: str) -> dict[str, Any]:
+    """Undo an applied comment: a plain undo when it is the page's last change; when only comment / status changes
+    came after it, the page content goes back to before the apply (comments kept, this one open again) as a new step."""
     c = _c(_find, _c(S.load_page, bid, pid), cid)
     seq = (c.get("result") or {}).get("history_seq")
     if c["status"] != "applied" or not seq:
         raise HTTPException(409, "this comment is not applied")
-    if S.last_page_seq(bid, pid) != seq:
-        raise HTTPException(409, "the page changed after this comment was applied: use Page versions to go back further")
-    _c(S.undo, bid, pid)
-    return A.get_page(bid, pid)
+    later = [e for e in S.history(bid) if e.get("pid") == pid and e["kind"] == "page" and e["seq"] > seq]
+    if not later:
+        _c(S.undo, bid, pid)
+        return A.get_page(bid, pid)
+    if any(not is_meta(e["action"]) for e in later):
+        raise HTTPException(409, "the page was edited after this comment was applied: use Page versions to go back further")
+    e = S.history_entry(bid, seq)
+    if not e or not e.get("before"):
+        raise HTTPException(404, "version not found")
+    old = e["before"]
+
+    def fn(p: dict[str, Any]) -> dict[str, Any]:
+        keep = {"comments": p.get("comments") or [], "status": p.get("status")}
+        new = {**copy.deepcopy(old), **keep, "id": pid}
+        for cc in new["comments"]:
+            if cc["id"] == cid:
+                cc["status"], cc["result"] = "open", {**(cc.get("result") or {}), "reverted": S.now()}
+        return new
+
+    return _view(bid, _c(S.mutate_page, bid, pid, fn, f"revert comment {c['n']}"))
 
 
 @router.put("/books/{bid}/pages/{pid}/status")

@@ -164,6 +164,18 @@ def test_text_patch_applies_one_step(client, book, model):
     # one undo reverts the applied comment (text back, comment open again)
     r = client.post(f"{B}/books/{bid}/pages/001/comments/{cid}/revert").json()
     assert r["text"][1]["text"] == "Alpha narration on parchment." and comment(r, cid)["status"] == "open"
+    # Revert still works when only comments changed after the apply (the other comments are kept) …
+    model.answers.append({"summary": "Shortened caption 2", "patch": {"text": "Alpha."}})
+    assert apply(client, bid, "001", cid)["status"] == "done"
+    other, _ = add(client, bid, "001", {"layer": "page", "x": 0, "y": 0}, "later note")
+    r = client.post(f"{B}/books/{bid}/pages/001/comments/{cid}/revert")
+    assert r.status_code == 200, r.text
+    assert r.json()["text"][1]["text"] == "Alpha narration on parchment." and comment(r.json(), cid)["status"] == "open" and comment(r.json(), other)["status"] == "open"
+    # … but not after a real edit of the page
+    model.answers.append({"summary": "Shortened caption 2", "patch": {"text": "Alpha."}})
+    assert apply(client, bid, "001", cid)["status"] == "done"
+    client.patch(f"{B}/books/{bid}/pages/001/text/001-t1", json={"x": 150})
+    assert client.post(f"{B}/books/{bid}/pages/001/comments/{cid}/revert").status_code == 409
 
 
 @pytest.mark.parametrize("answer,why", [
