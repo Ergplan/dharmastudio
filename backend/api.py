@@ -128,7 +128,7 @@ def j_page(session: Session, pg: Page) -> dict[str, Any]:
             "typography": render.page_typography(pg).summary(), "panels": [j_panel(session, p) for p in pg.panels]}
 
 
-JOB_LABELS = {"panel": "Panel", "page": "Page", "refs": "References", "silhouettes": "Silhouettes", "prefill": "Prefill", "hindi": "Hindi drafts", "propose": "Propose cast", "export": "Export", "batch": "Director", "manuscript": "Manuscript",
+JOB_LABELS = {"book_pdf": "Book PDF", "panel": "Panel", "page": "Page", "refs": "References", "silhouettes": "Silhouettes", "prefill": "Prefill", "hindi": "Hindi drafts", "propose": "Propose cast", "export": "Export", "batch": "Director", "manuscript": "Manuscript",
               "motion_render": "Moment film", "seedance": "Seedance take", "site_publish": "Site"}
 
 
@@ -1452,6 +1452,10 @@ for _router in (links_api.router, qr_api.router, motion_api.router):  # before /
 from . import director_api  # noqa: E402  — the Art Director router (also registers its worker jobs)
 
 app.include_router(director_api.router)  # before /media and the SPA catch-all
+
+from . import book_api  # noqa: E402  — the layered Book (imported packages; also registers the book_pdf job)
+
+app.include_router(book_api.router)
 
 app.mount("/media", StaticFiles(directory=str(db.DATA_DIR)), name="media")
 
