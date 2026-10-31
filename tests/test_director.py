@@ -195,7 +195,7 @@ def test_direct_page_dry_run_end_to_end(dclient, session):
     line = next(s for s in A.sentences(text) if 30 < len(s) < 200 and "“" not in s)
     try:
         brief = {"chapter_id": tmp.id, "action": "Rama fits Agastya's arrow to the bow as the wind drops", "characters": ["rama"],
-                 "setting": "Night before the burning walls of Lanka.", "lines": [{"text": line, "kind": "narration"}], "page_number": 1}
+                 "setting": "Night before the burning walls of Lanka.", "lines": [{"text": line, "kind": "narration"}], "page_number": 1, "mode": "shards"}
         est = dclient.post("/api/art-director/estimate", json={"brief": brief, "settings": {"candidates": 2}}).json()
         assert est["images"] == 8 and est["usd"] == 0.0 and est["dry_run"]
         r = dclient.post("/api/art-director/direct", json={"brief": brief, "settings": {"candidates": 2, "retries": 2}})
@@ -337,7 +337,7 @@ def test_revision_loop_uses_the_critics_fix(dclient, session, monkeypatch):
     session.add(tmp)
     session.commit()
     try:
-        brief = {"chapter_id": tmp.id, "action": "Rama fits Agastya's arrow to the bow", "characters": ["rama"], "page_number": 1}
+        brief = {"chapter_id": tmp.id, "action": "Rama fits Agastya's arrow to the bow", "characters": ["rama"], "page_number": 1, "mode": "shards"}
         r = dclient.post("/api/art-director/direct", json={"brief": brief, "settings": {"candidates": 1, "retries": 2}})
         j = wait(dclient, r.json()["job_id"])
         assert j["status"] == "done", j["log"]
