@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     sunburst_text_in_per_m: float = 5.0
     sunburst_image_in_per_m: float = 8.0
     sunburst_image_out_per_m: float = 30.0
+    # Claude token prices for the agent model (USD per million tokens; the Book's comment engine records them)
+    agent_in_per_m: float = 3.0
+    agent_out_per_m: float = 15.0
+    # Sunburst image edits accept a mask (the Book's art-region comments); set false if the model in use rejects one
+    sunburst_mask: bool = True
     # Gemini and Topaz bill per image; these are flat estimates used for the ledger
     gemini_cost_per_image: float = 0.04
     gemini_pro_cost_per_image: float = 0.13

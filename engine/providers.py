@@ -120,6 +120,52 @@ def sunburst_generate(prompt: str, orientation: str = "landscape", references: l
     return ImageResult(base64.b64decode(b64), "sunburst", model, _sunburst_cost(body.get("usage")), False, {"size": size, "usage": body.get("usage"), "references": [str(r) for r in refs]})
 
 
+def _dry_run_edit(image: bytes, mask: bytes | None, size: str, prompt: str) -> bytes:
+    """Without a key: the input with the region to repaint (transparent in the mask, or all of it) tinted, blurred and
+    labelled DRY RUN, so the whole edit flow (new file, history, before / after) runs end to end."""
+    from PIL import ImageFilter
+
+    w, h = (int(v) for v in size.split("x"))
+    with Image.open(io.BytesIO(image)) as im:
+        base = im.convert("RGB").resize((w, h))
+    if mask:
+        with Image.open(io.BytesIO(mask)) as m:
+            region = Image.eval(m.convert("RGBA").resize((w, h)).getchannel("A"), lambda a: 255 - a)
+    else:
+        region = Image.new("L", (w, h), 255)
+    edited = base.filter(ImageFilter.GaussianBlur(10))
+    edited = Image.blend(edited, Image.new("RGB", (w, h), (150, 92, 40)), 0.35)
+    out = Image.composite(edited, base, region)
+    bbox = region.getbbox() or (0, 0, w, h)
+    d = ImageDraw.Draw(out)
+    d.text((bbox[0] + 14, bbox[1] + 10), "DRY RUN · edit", fill=(250, 240, 220), font=_font(30))
+    for i, line in enumerate(textwrap.wrap(prompt.split("\n", 1)[0], 34)[:4]):
+        d.text((bbox[0] + 14, bbox[1] + 50 + 34 * i), line, fill=(245, 232, 210), font=_font(24))
+    buf = io.BytesIO()
+    out.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def sunburst_edit(image: bytes, prompt: str, size: str, mask: bytes | None = None) -> ImageResult:
+    """POST /v1/images/edits with the current painting as the image and, for a region, a mask (PNG, same size,
+    transparent where the model may paint). Raises httpx.HTTPStatusError on a provider error (the caller may retry
+    without the mask). Dry run (no OpenAI key): a labelled placeholder edit of the same region."""
+    model = settings.sunburst_model
+    if settings.dry_run_sunburst:
+        return ImageResult(_dry_run_edit(image, mask, size, prompt), "sunburst", model, 0.0, True, {"size": size, "mask": bool(mask)})
+    headers = {"Authorization": f"Bearer {settings.openai_api_key}"}
+    files: list[tuple[str, tuple[str, bytes, str]]] = [("image[]", ("art.png", image, "image/png"))]
+    if mask:
+        files.append(("mask", ("mask.png", mask, "image/png")))
+    data = {"model": model, "prompt": prompt, "size": size, "quality": "high", "n": "1"}
+    with httpx.Client(timeout=300, headers=headers) as cx:
+        r = cx.post(f"{OPENAI_IMAGES}/edits", data=data, files=files)
+        r.raise_for_status()
+        body = r.json()
+    return ImageResult(base64.b64decode(body["data"][0]["b64_json"]), "sunburst", model, _sunburst_cost(body.get("usage")), False,
+                       {"size": size, "usage": body.get("usage"), "mask": bool(mask)})
+
+
 # ---------------------------------------------------------------------------------
 # Gemini (Interactions API)
 # ---------------------------------------------------------------------------------

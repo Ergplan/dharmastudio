@@ -38,3 +38,6 @@ web/.next/
 data/run*/
 data/proof/
 data/v3/
+
+# imported layered book packages (the book stays out of the repo)
+data/books/

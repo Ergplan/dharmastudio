@@ -12,6 +12,7 @@ import DirectorScreen from './screens/Director'
 import SilhouettesScreen from './screens/Silhouettes'
 import ExportScreen from './screens/Export'
 import MotionScreen from './screens/Motion'
+import BookScreen from './screens/Book'
 
 export default function App() {
   const nav = useNavigate()
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/silhouettes" element={<SilhouettesScreen />} />
             <Route path="/export" element={<ExportScreen />} />
             <Route path="/motion" element={<MotionScreen />} />
+            <Route path="/book" element={<BookScreen />} />
             <Route path="*" element={<Navigate to="/project" replace />} />
           </Routes>
         </main>

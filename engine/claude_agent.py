@@ -39,8 +39,10 @@ def _image_block(p: Path) -> dict[str, Any]:
     return {"type": "image", "source": {"type": "base64", "media_type": media, "data": data}}
 
 
-def claude_ask_json(system: str, user: str, images: list[Path] | None = None, model: str | None = None, max_tokens: int = 8000) -> Any:
-    """One Messages API call. Raises when no key is configured; callers handle fallbacks through engine.llm."""
+def claude_ask_json(system: str, user: str, images: list[Path] | None = None, model: str | None = None, max_tokens: int = 8000,
+                    usage: dict[str, Any] | None = None) -> Any:
+    """One Messages API call. Raises when no key is configured; callers handle fallbacks through engine.llm.
+    `usage`, when given, is filled with the call's token counts and its cost in USD (for the ledger)."""
     if settings.dry_run_agents:
         raise RuntimeError("ANTHROPIC_API_KEY missing")
     import anthropic
@@ -50,4 +52,9 @@ def claude_ask_json(system: str, user: str, images: list[Path] | None = None, mo
     content.append({"type": "text", "text": user})
     msg = client.messages.create(model=model or settings.agent_model, max_tokens=max_tokens, system=system, messages=[{"role": "user", "content": content}])
     text = "".join(getattr(b, "text", "") for b in msg.content)
+    if usage is not None:
+        u = getattr(msg, "usage", None)
+        tin, tout = int(getattr(u, "input_tokens", 0) or 0), int(getattr(u, "output_tokens", 0) or 0)
+        usage.update(model=model or settings.agent_model, input_tokens=tin, output_tokens=tout,
+                     cost_usd=round(tin / 1e6 * settings.agent_in_per_m + tout / 1e6 * settings.agent_out_per_m, 5))
     return extract_json(text)
