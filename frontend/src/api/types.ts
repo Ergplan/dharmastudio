@@ -270,7 +270,7 @@ export interface Silhouette {
 
 export type JobKind =
   | 'refs' | 'panel' | 'page' | 'prefill' | 'hindi' | 'silhouettes' | 'export' | 'propose' | 'manuscript' | 'batch' | 'art_director' | 'art_cover'
-  | 'motion_render' | 'seedance' | 'site_publish'
+  | 'motion_render' | 'seedance' | 'site_publish' | 'book_pdf'
 export type JobStatus = 'queued' | 'running' | 'done' | 'failed' | 'stopped'
 export interface BatchProgress { page: number; panel: number; done: number; total: number; cost_so_far: number }
 export interface Job {

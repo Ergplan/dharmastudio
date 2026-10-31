@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { BookOpen, Users, Layers, Type, FileText, LayoutGrid, Clapperboard, PenTool, Download, Film, Activity, X, Square, Loader2, AlertTriangle, ShieldAlert, Info, Check } from 'lucide-react'
+import { BookOpen, BookOpenCheck, Users, Layers, Type, FileText, LayoutGrid, Clapperboard, PenTool, Download, Film, Activity, X, Square, Loader2, AlertTriangle, ShieldAlert, Info, Check } from 'lucide-react'
 import { useActiveJobs, useProject, useCharacters, useVolumes, useChapters, usePages, useSilhouettes, useExports, useStopJob, useLedger } from '@/api/hooks'
 import { useToasts } from '@/store/toasts'
 import { cx, StatusDot, ProgressBar, jobFraction, jobIsActive } from './ui'
@@ -32,6 +32,7 @@ function useRailStatus(): Record<string, { tone: Tone; title: string }> {
     silhouettes: { tone: sils.length ? 'ok' : 'idle', title: `${sils.length} in library` },
     export: { tone: jobs.some(j => j.kind === 'export') ? 'busy' : exps.length ? 'ok' : 'idle', title: `${exps.length} exports` },
     motion: { tone: jobs.some(j => j.kind === 'motion_render' || j.kind === 'seedance' || j.kind === 'site_publish') ? 'busy' : 'idle', title: 'Moments, Seedance, QR, Links, Site' },
+    book: { tone: jobs.some(j => j.kind === 'book_pdf') ? 'busy' : 'idle', title: 'The layered book: paper · art · text per page' },
   }
 }
 
@@ -46,6 +47,7 @@ const NAV = [
   { to: '/silhouettes', key: 'silhouettes', label: 'Silhouettes', icon: PenTool },
   { to: '/export', key: 'export', label: 'Export', icon: Download },
   { to: '/motion', key: 'motion', label: 'Motion', icon: Film },
+  { to: '/book', key: 'book', label: 'Book', icon: BookOpenCheck },
 ]
 
 export function Rail() {
@@ -59,7 +61,7 @@ export function Rail() {
         <NavLink key={n.to} to={n.to} className={({ isActive }) => cx('relative flex flex-col items-center gap-1 py-2.5 text-2xs text-ink-400 hover:text-ink-100 hover:bg-ink-850', isActive && 'text-gold-300 bg-ink-850 before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:bg-gold-400')}>
           <n.icon size={18} strokeWidth={1.75} />
           <span className="flex items-center gap-1">{n.label}<StatusDot tone={st[n.key]?.tone ?? 'idle'} title={st[n.key]?.title} pulse={st[n.key]?.tone === 'busy'} /></span>
-          <span className="absolute top-1 right-2 text-[0.58rem] text-ink-600 font-mono">{(i + 1) % 10}</span>
+          {i < 10 && <span className="absolute top-1 right-2 text-[0.58rem] text-ink-600 font-mono">{(i + 1) % 10}</span>}
         </NavLink>
       ))}
       <div className="mt-auto px-2 pb-1 text-[0.58rem] text-ink-600 text-center leading-tight">{MOCK ? 'MOCK MODE' : 'localhost:8787'}</div>
@@ -67,7 +69,7 @@ export function Rail() {
   )
 }
 
-const TITLES: Record<string, string> = { '/project': 'Project', '/characters': 'Characters', '/canvas': 'Canvas', '/typography': 'Typography', '/script': 'Script', '/pages': 'Pages', '/director': 'Art Director', '/silhouettes': 'Silhouettes', '/export': 'Export', '/motion': 'Motion & Links' }
+const TITLES: Record<string, string> = { '/project': 'Project', '/characters': 'Characters', '/canvas': 'Canvas', '/typography': 'Typography', '/script': 'Script', '/pages': 'Pages', '/director': 'Art Director', '/silhouettes': 'Silhouettes', '/export': 'Export', '/motion': 'Motion & Links', '/book': 'Book' }
 
 export function Header({ right }: { right?: ReactNode }) {
   const loc = useLocation()
