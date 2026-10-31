@@ -210,3 +210,30 @@ high) paints the WHOLE page in one fixed house style, with large readable letter
 
 Routes: `GET /api/art-director/painted/style`, `PUT /api/art-director/volumes/{id}/mode`, `PUT /api/art-director/pages/{id}/mode`,
 `GET /api/art-director/pages/{id}/painted`, `POST …/painted/select`, `POST …/painted/verify`, `POST …/painted/boxes`.
+
+## 11. Book — the layered book (added 2026-10-31)
+
+Rail → **Book** shows the finished book page by page as three layers the author can edit, hide, add or remove:
+**paper** (texture, sepia line figures, the shloka and its source, the page number), **art** (the painting in its window,
+torn edge) and **text** (parchment cards, frosted-glass balloons with a short tail, glass narration, header cards).
+
+- The book never ships with the studio (public repo, author decision): the author imports a local `dharma-book/1`
+  package at runtime — a folder, its `manifest.json`, a `.dharmabook` or a `.zip` (`manifest.json` + `art/<id>.jpg` +
+  `art/cover.jpg`). The import dialog offers any `Cycle_of_Dharma_V1_V3.dharmabook` (and other `.dharmabook`s) found in
+  `~/apps/dharma-pipeline/exports`, `~/Documents` or `~/Downloads`; nothing is imported until the author clicks.
+- Storage: `<data>/books/<id>/` (gitignored) — `book.json` (meta + page order), `pages/<id>.json`, `art/`,
+  `history.json` (every change keeps the page as it was: undo, page versions, restore). No studio.db tables.
+- Coordinates are page px on `page_px` (2040 × 3060 for 170 × 255 mm, 12 px/mm); the renderer
+  (`engine/book_render.py`) converts to mm. One HTML drives the live preview, the PNG and the PDF; text is real text.
+- Exports: whole-book PDF (cover + pages) in **print** (176 × 261 mm: bleed + crop marks) or **screen** (170 × 255 mm,
+  lighter art) through the studio's headless-Chrome path; a page as PNG at page_px; the book back to a `.dharmabook`.
+  A hidden layer is hidden in the exports too.
+
+Routes (`backend/book_api.py`, prefix `/api/book`): `GET /import/candidates`, `POST /import {path}`,
+`POST /import/upload`, `GET /books`, `GET|DELETE /books/{b}`, `PUT /books/{b}/order`, `POST /books/{b}/undo`,
+`GET /books/{b}/history`, `POST /books/{b}/pages {mode: blank|duplicate}`, `POST /books/{b}/pages/from-image`,
+`GET|PATCH|DELETE /books/{b}/pages/{p}`, `PUT …/layers`, `PATCH …/paper`, `PATCH|POST …/art`,
+`POST …/text`, `PATCH|DELETE …/text/{t}`, `GET …/history`, `POST …/undo`, `POST …/restore {seq}`, `GET …/render`,
+`GET …/thumb`, `GET …/png`, `POST /books/{b}/export/pdf {paper}` (job `book_pdf`), `POST /books/{b}/export/package`,
+`GET /books/{b}/exports`, `GET /shlokas | /figures | /textures | /fonts`.
+

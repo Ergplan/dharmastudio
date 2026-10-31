@@ -90,8 +90,12 @@ function useBookMutation<A, R>(bid: string | null, fn: (a: A) => Promise<R>, onO
   const qc = useQueryClient()
   return useApiMutation(fn, [], (r: R, a: A) => {
     const fresh = (r as { book?: Book } | null)?.book
-    if (bid && fresh?.pages_list) qc.setQueryData(bk.book(bid), fresh)  // the new order at once (no flash of the old one)
-    else if (bid && (r as Book | null)?.pages_list) qc.setQueryData(bk.book(bid), r)
+    const next = fresh?.pages_list ? fresh : (r as Book | null)?.pages_list ? (r as Book) : null
+    if (bid && next) {
+      qc.setQueryData(bk.book(bid), next)  // the new order at once (no flash of the old one)
+      const alive = new Set(next.pages_list.map(p => p.id))  // forget pages that left the book (no refetch of a 404)
+      for (const key of ['book-page', 'book-history']) qc.removeQueries({ predicate: (q) => q.queryKey[0] === key && q.queryKey[1] === bid && !alive.has(String(q.queryKey[2])) })
+    }
     if (bid) { qc.invalidateQueries({ queryKey: bk.book(bid) }); qc.invalidateQueries({ queryKey: ['book-page', bid] }); qc.invalidateQueries({ queryKey: ['book-history', bid] }) }
     onOk?.(r, a)
   })

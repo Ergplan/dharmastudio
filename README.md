@@ -153,6 +153,19 @@ line in Cinzel — PNG + PDF at 300 ppi, 2:3. The author's current cover can be 
 `data/covers/` (never committed). Routes: `backend/director_api.py`; engine: `engine/director/`; tests:
 `tests/test_director.py` (the book-dependent ones skip without the local book).
 
+## Book (layered pages)
+
+*Rail → **Book***: every page of the finished book as **paper · art · text** layers. Import the local package
+(*Import*: a `.dharmabook`, a .zip or the package folder; packages in `~/apps/dharma-pipeline/exports`, `~/Documents`
+and `~/Downloads` are offered). It is copied into `data/books/` and never committed or bundled. Left: the pages (drag to
+reorder, *Add page* blank / duplicate / from an image, delete with confirm, numbers follow the order). Centre: the
+rendered page with Paper · Art · Text toggles; click a text box to select, drag to move, the corner to resize,
+double-click to edit, drag the gold handle to aim a balloon's tail. Right: the layers list and the inspector (text:
+style, font, size, align; art: replace, crop / fit, torn edge; paper: shloka picker with Devanagari and meaning,
+figures, texture), and the page's versions. Top: *Export PDF* (print with bleed + crop marks, or screen), *Export
+package*, *PNG*, *Undo* (⌘Z). Spec: `SPEC.md` §11; renderer `engine/book_render.py`; store `backend/book_store.py`;
+routes `backend/book_api.py`; tests `tests/test_book_layers.py` (a synthetic package, never the real book).
+
 ## Tests
 
 ```bash

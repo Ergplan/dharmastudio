@@ -35,8 +35,9 @@ export default function BookScreen() {
   }, [book, pid]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => save({ book: bid ?? undefined, page: pid ?? undefined }), [bid, pid])
   useEffect(() => setSel(null), [pid])
-  const { data: page } = useBookPage(bid, pid)
-  const { data: html } = useBookRender(bid, pid, page?.rev)
+  const live = book?.pages_list.some(p => p.id === pid) ? pid : null  // never ask for a page that just left the book
+  const { data: page } = useBookPage(bid, live)
+  const { data: html } = useBookRender(bid, live, page?.rev)
 
   if (isLoading) return <Spinner />
   if (!books?.length || !bid) return (
