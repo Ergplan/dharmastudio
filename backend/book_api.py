@@ -244,8 +244,11 @@ def clean_art(a: dict[str, Any], base: dict[str, Any] | None) -> dict[str, Any] 
 # ---------------------------------------------------------------------------------
 
 
+NOT_RENDERED = ("number", "comments", "status")  # page fields that do not change the picture (no new render / thumb)
+
+
 def page_hash(p: dict[str, Any]) -> str:
-    return hashlib.sha1(json.dumps({k: v for k, v in p.items() if k != "number"}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:12]
+    return hashlib.sha1(json.dumps({k: v for k, v in p.items() if k not in NOT_RENDERED}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:12]
 
 
 def page_view(bid: str, p: dict[str, Any]) -> dict[str, Any]:
@@ -259,7 +262,16 @@ def page_summary(bid: str, p: dict[str, Any]) -> dict[str, Any]:
     h = page_hash(p)
     return {"id": p["id"], "number": p.get("number"), "rev": h, "thumb": f"/api/book/books/{bid}/pages/{p['id']}/thumb?v={h}", "texts": len(p.get("text") or []),
             "has_art": bool(p.get("art")), "layers": p.get("layers"), "template": p.get("template"), "era": p.get("era"),
-            "header": next((t.get("title") or t.get("text") for t in p.get("text") or [] if t.get("style") == "header"), None)}
+            "header": next((t.get("title") or t.get("text") for t in p.get("text") or [] if t.get("style") == "header"), None),
+            "status": p.get("status") or "draft", "open_comments": sum(1 for c in p.get("comments") or [] if c.get("status") == "open"),
+            "comments": len(p.get("comments") or []), "patches": len(((p.get("art") or {}).get("patches")) or [])}
+
+
+def progress_of(ps: list[dict[str, Any]]) -> dict[str, Any]:
+    st = [p.get("status") or "draft" for p in ps]
+    return {"pages": len(ps), "approved": st.count("approved"), "review": st.count("review"), "draft": st.count("draft"),
+            "open_comments": sum(1 for p in ps for c in p.get("comments") or [] if c.get("status") == "open"),
+            "unapproved": [{"id": p["id"], "number": p.get("number")} for p in ps if (p.get("status") or "draft") != "approved"]}
 
 
 def book_view(bid: str) -> dict[str, Any]:
@@ -268,7 +280,7 @@ def book_view(bid: str) -> dict[str, Any]:
     cover = (b.get("cover") or {}).get("file")
     return {**S.summary(b), "page_px": b.get("page_px"), "trim_mm": b.get("trim_mm"), "bleed_mm": b.get("bleed_mm"), "frame": b.get("frame"), "styles": b.get("styles"),
             "cover_url": f"/media/books/{bid}/{cover}" if cover else None, "pages_list": [page_summary(bid, p) for p in ps],
-            "undo": len(S.history(bid)), "format": b.get("format")}
+            "undo": len(S.history(bid)), "format": b.get("format"), "progress": {k: v for k, v in progress_of(ps).items() if k != "unapproved"}}
 
 
 # ---------------------------------------------------------------------------------
@@ -596,9 +608,15 @@ def page_restore(bid: str, pid: str, body: dict[str, Any]) -> dict[str, Any]:
 
 
 @router.get("/books/{bid}/pages/{pid}/render", response_class=HTMLResponse)
-def render_page(bid: str, pid: str, paper: str = "screen", embed: bool = False) -> HTMLResponse:
+def render_page(bid: str, pid: str, paper: str = "screen", embed: bool = False, seq: int | None = None) -> HTMLResponse:
+    """`seq`: the page as it was before history entry `seq` (the before / after view of an applied comment)."""
     b = _call(S.load_book, bid)
     p = _call(S.load_page, bid, pid)
+    if seq is not None:
+        e = S.history_entry(bid, seq)
+        if not e or e.get("pid") != pid or not e.get("before"):
+            raise HTTPException(404, "version not found")
+        p = S.normalise_page(e["before"])
     res = R.Resources("embed", S.book_dir(bid), S.assets_dir()) if embed else http_resources(bid)
     return HTMLResponse(R.page_document(b, p, res, "print" if paper == "print" else "screen", S.number_of(b, pid)))
 
@@ -644,6 +662,11 @@ def make_thumb(b: dict[str, Any], p: dict[str, Any], bdir: Path, out: Path, widt
                 from PIL import ImageOps
 
                 im.paste(ImageOps.fit(a.convert("RGB"), box), (round(art["x"] * k), round(art["y"] * k)))
+    if lay["art"] and art:
+        dp = ImageDraw.Draw(im, "RGBA")
+        for pa in art.get("patches") or []:
+            if not pa.get("hidden"):
+                dp.rounded_rectangle([pa["x"] * k, pa["y"] * k, (pa["x"] + pa["w"]) * k, (pa["y"] + pa["h"]) * k], 2, fill=(232, 216, 180, 255))
     if lay["text"]:
         dr = ImageDraw.Draw(im, "RGBA")
         for t in p.get("text") or []:

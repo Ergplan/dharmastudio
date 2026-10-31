@@ -1,6 +1,6 @@
 """Book store: imported layered book packages, kept as JSON files in the data folder (never in the repo).
 
-A package (`dharma-book/1`) is a folder, or a .dharmabook / .zip of one, holding `manifest.json` plus the art files
+A package (`dharma-book/1`, or `/2` which adds `art.patches`) is a folder, or a .dharmabook / .zip of one, holding `manifest.json` plus the art files
 it names (`art/<id>.jpg`, `art/cover.jpg`). Importing copies it into `<data>/books/<book id>/`:
 
     book.json            the manifest without its pages, plus `id`, `order` (page ids) and import details
@@ -178,6 +178,9 @@ def normalise_page(p: dict[str, Any]) -> dict[str, Any]:
     art = p.get("art")
     if art and not ART_RE.match(str(art.get("file") or "")):
         art = None
+    if art and "patches" in art:
+        art = dict(art)
+        art["patches"] = normalise_patches(art.get("patches"))
     p["art"] = art or None
     p["text"] = [dict(t) for t in (p.get("text") or []) if isinstance(t, dict)]
     seen: set[str] = set()
@@ -189,7 +192,66 @@ def normalise_page(p: dict[str, Any]) -> dict[str, Any]:
     lay = p.get("layers") or {}
     p["layers"] = {k: bool(lay.get(k, True)) for k in ("paper", "art", "text")}
     p.setdefault("page_number", True)
+    if p.get("status") not in PAGE_STATUSES:
+        p["status"] = "draft"
+    p["comments"] = normalise_comments(p.get("comments"))
     return p
+
+
+PAGE_STATUSES = ("draft", "review", "approved")
+COMMENT_STATUSES = ("open", "applied", "dismissed")
+ANCHOR_LAYERS = ("text", "paper", "art", "page")
+
+
+def normalise_patches(raw: Any) -> list[dict[str, Any]]:
+    """`art.patches`: parchment cover-ups (page px) over boxes the painter left empty; `linked` = nearest text box id."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for i, x in enumerate(raw if isinstance(raw, list) else []):
+        if not isinstance(x, dict):
+            continue
+        try:
+            px, py, pw, ph = (round(float(x.get(k) or 0), 2) for k in ("x", "y", "w", "h"))
+        except (TypeError, ValueError):
+            continue
+        if pw <= 0 or ph <= 0:
+            continue
+        pid = str(x.get("id") or "")
+        if not ID_RE.match(pid) or pid in seen:
+            n = i + 1
+            while f"pa{n}" in seen:
+                n += 1
+            pid = f"pa{n}"
+        seen.add(pid)
+        linked = x.get("linked")
+        out.append({"id": pid, "x": px, "y": py, "w": pw, "h": ph, "linked": str(linked) if linked else None, "hidden": bool(x.get("hidden"))})
+    return out
+
+
+def normalise_comments(raw: Any) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for c in raw if isinstance(raw, list) else []:
+        if not isinstance(c, dict) or not ID_RE.match(str(c.get("id") or "")) or c["id"] in seen:
+            continue
+        seen.add(c["id"])
+        a = c.get("anchor") if isinstance(c.get("anchor"), dict) else {}
+        anchor: dict[str, Any] = {"layer": a.get("layer") if a.get("layer") in ANCHOR_LAYERS else "page", "element": (str(a["element"])[:80] if a.get("element") else None),
+                                  "x": _f(a.get("x")), "y": _f(a.get("y"))}
+        r = a.get("rect")
+        if isinstance(r, dict) and all(k in r for k in ("x", "y", "w", "h")):
+            anchor["rect"] = {k: _f(r[k]) for k in ("x", "y", "w", "h")}
+        out.append({"id": c["id"], "n": int(c.get("n") or len(out) + 1), "anchor": anchor, "text": str(c.get("text") or "")[:4000],
+                    "status": c.get("status") if c.get("status") in COMMENT_STATUSES else "open", "created": c.get("created") or now(),
+                    "result": c.get("result") if isinstance(c.get("result"), dict) else None})
+    return out
+
+
+def _f(v: Any) -> float:
+    try:
+        return round(float(v or 0), 2)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def next_text_id(p: dict[str, Any], taken: set[str] | None = None) -> str:
@@ -222,11 +284,30 @@ def history(bid: str) -> list[dict[str, Any]]:
     return _read(p) if p.exists() else []
 
 
-def _record(bid: str, kind: str, action: str, pid: str | None, before: dict[str, Any] | None, order_before: list[str] | None) -> None:
+def peek_seq(bid: str) -> int:
+    """The seq the next history entry will get. Never reused (also after an undo), so a seq names one change for good."""
     h = history(bid)
-    seq = (h[-1]["seq"] + 1) if h else 1
+    f = book_dir(bid) / "history.seq"
+    last = int(f.read_text() or 0) if f.exists() else 0
+    return max(last, h[-1]["seq"] if h else 0) + 1
+
+
+def _record(bid: str, kind: str, action: str, pid: str | None, before: dict[str, Any] | None, order_before: list[str] | None) -> int:
+    h = history(bid)
+    seq = peek_seq(bid)
+    (book_dir(bid) / "history.seq").write_text(str(seq))
     h.append({"seq": seq, "at": now(), "kind": kind, "action": action, "pid": pid, "before": before, "order_before": order_before})
     _write(_hist_path(bid), h[-HISTORY_CAP:])
+    return seq
+
+
+def history_entry(bid: str, seq: int) -> dict[str, Any] | None:
+    return next((x for x in history(bid) if x["seq"] == seq), None)
+
+
+def last_page_seq(bid: str, pid: str) -> int | None:
+    """The seq of the page's most recent content change (what a page undo would revert)."""
+    return next((e["seq"] for e in reversed(history(bid)) if e.get("pid") == pid and e["kind"] == "page"), None)
 
 
 def page_history(bid: str, pid: str) -> list[dict[str, Any]]:
@@ -284,16 +365,22 @@ def restore(bid: str, pid: str, seq: int) -> dict[str, Any]:
 
 def mutate_page(bid: str, pid: str, fn: Callable[[dict[str, Any]], dict[str, Any] | None], action: str) -> dict[str, Any]:
     """Load the page, apply `fn` (edits in place or returns a new page), normalise, save, record the old version."""
+    return mutate_page_seq(bid, pid, lambda p, _seq: fn(p), action)
+
+
+def mutate_page_seq(bid: str, pid: str, fn: Callable[[dict[str, Any], int], dict[str, Any] | None], action: str | Callable[[dict[str, Any]], str]) -> dict[str, Any]:
+    """`mutate_page` where `fn(page, seq)` also learns the seq this change will be recorded under (one history step)."""
     with _lock:
         before = load_page(bid, pid)
         page = copy.deepcopy(before)
-        r = fn(page)
+        seq = peek_seq(bid)
+        r = fn(page, seq)
         page = normalise_page(r if r is not None else page)
         page["id"] = pid
         if page == before:
             return page
         save_page(bid, page)
-        _record(bid, "page", action, pid, before, None)
+        _record(bid, "page", action(page) if callable(action) else action, pid, before, None)
         b = load_book(bid)
         save_book(b)
         page["number"] = number_of(b, pid)
@@ -480,8 +567,9 @@ def manifest(bid: str) -> dict[str, Any]:
     """The book as a dharma-book/1 manifest (pages in the current order, numbered)."""
     b = load_book(bid)
     meta = {k: v for k, v in b.items() if k not in ("id", "order", "imported_at", "updated_at", "source")}
-    meta["format"] = FORMAT
     meta["pages"] = pages(bid)
+    # dharma-book/2 adds art.patches (cover-ups over empty boxes, art.file the clean painting); /1 has none
+    meta["format"] = "dharma-book/2" if any((p.get("art") or {}).get("patches") for p in meta["pages"]) else FORMAT
     return meta
 
 
@@ -509,3 +597,13 @@ def export_package(bid: str) -> Path:
 def delete_book(bid: str) -> None:
     with _lock:
         shutil.rmtree(book_dir(bid))
+
+
+def set_comment_result(bid: str, pid: str, cid: str, result: dict[str, Any]) -> None:
+    """Record a failed apply on a comment without a history step (nothing on the page changed)."""
+    with _lock:
+        page = load_page(bid, pid)
+        for c in page.get("comments") or []:
+            if c.get("id") == cid:
+                c["result"] = result
+        save_page(bid, page)

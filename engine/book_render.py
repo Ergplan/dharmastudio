@@ -9,7 +9,8 @@ Layers, bottom to top:
 - paper: the texture (covering the bleed), the sepia line figures (grayscale ink -> #5c3416, alpha = inverted
   luminance x opacity, optionally mirrored), the shloka (line 0 centred in the top margin, the remaining lines joined
   and centred in the bottom margin, shrink-to-fit), the source line and the page number;
-- art: the painting in its window with a slightly jagged torn edge (clip-path) and a soft shadow;
+- art: the painting in its window with a slightly jagged torn edge (clip-path) and a soft shadow, then its patches
+  (parchment cover-ups over boxes the painter left empty; `art.patches`, optional);
 - text: parchment cards, frosted glass boxes (backdrop blur) with a short tail, glass narration with a gold accent bar,
   header cards (kicker + title). All text is real, searchable text.
 
@@ -330,20 +331,38 @@ def _paper_html(page: dict[str, Any], g: Geo, res: Resources, number: int | None
     return f"<div class='layer layer-paper'>{''.join(out)}</div>"
 
 
+PATCH_TEXTURE = "page_warm"
+
+
+def patches_html(art: dict[str, Any], g: Geo, res: Resources) -> str:
+    """`art.patches`: parchment cover-ups (texture page_warm, 8 px rounded, a soft 2 px edge) over boxes the painter
+    left empty in the art. A sub-layer of the art; each patch can be hidden on its own (`hidden`)."""
+    tex = TEXTURES / f"{PATCH_TEXTURE}.jpg"
+    bg = f"background-image:url('{res.url('texture', tex)}');" if tex.exists() else ""
+    out = []
+    for pa in art.get("patches") or []:
+        if pa.get("hidden"):
+            continue
+        x, y, w, h = (float(pa.get(k) or 0) for k in ("x", "y", "w", "h"))
+        out.append(f"<div class='patch' data-patch='{_esc(pa.get('id'))}' style=\"left:{g.mm(x)};top:{g.mm(y)};width:{g.mm(w)};height:{g.mm(h)};{bg}"
+                   f"border-radius:{g.mm(8)};box-shadow:0 0 {g.mm(2)} {g.mm(2)} rgba(232,216,180,.85)\"></div>")
+    return "".join(out)
+
+
 def _art_html(page: dict[str, Any], g: Geo, res: Resources) -> str:
     art = page.get("art") or {}
     if not art.get("file") or not res.book_dir:
         return "<div class='layer layer-art'></div>"
     path = res.book_dir / str(art["file"])
     if not path.exists():
-        return "<div class='layer layer-art'></div>"
+        return f"<div class='layer layer-art'>{patches_html(art, g, res)}</div>"
     x, y, w, h = (float(art.get(k) or 0) for k in ("x", "y", "w", "h"))
     fit = art.get("fit") if art.get("fit") in ("cover", "contain", "fill") else "cover"
     fx, fy = (art.get("focus") or [0.5, 0.5])[:2]
     clip = f"clip-path:{torn_clip(w, h, str(page.get('id')) + str(art['file']))};" if art.get("torn", True) else ""
     return (f"<div class='layer layer-art'><div class='art' style='left:{g.mm(x)};top:{g.mm(y)};width:{g.mm(w)};height:{g.mm(h)}'>"
             f"<div class='art-clip' style='{clip}'><img class='art-img' alt='' src='{res.url('art', path)}' "
-            f"style='object-fit:{fit};object-position:{100 * float(fx):.1f}% {100 * float(fy):.1f}%'></div></div></div>")
+            f"style='object-fit:{fit};object-position:{100 * float(fx):.1f}% {100 * float(fy):.1f}%'></div></div>{patches_html(art, g, res)}</div>")
 
 
 def box_font(t: dict[str, Any]) -> tuple[str, int, float, float, str, str]:
@@ -517,6 +536,7 @@ html,body{{margin:0;padding:0;background:#2a2622}}
 .art{{position:absolute;filter:drop-shadow(0 0.5mm 1.1mm rgba(30,16,4,.55))}}
 .art-clip{{position:absolute;inset:0;overflow:hidden;background:#1a120b}}
 .art-img{{display:block;width:100%;height:100%}}
+.patch{{position:absolute;background-size:cover;background-position:center;background-color:#e8d8b4}}
 .tails{{position:absolute;left:0;top:0;overflow:visible}}
 .tb{{position:absolute;display:flex;align-items:center}}
 .tb-in{{position:relative;width:100%;overflow-wrap:break-word}}
