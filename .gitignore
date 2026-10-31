@@ -37,3 +37,4 @@ web/.next/
 # comic runs hold manuscript excerpts and generated art: never commit
 data/run*/
 data/proof/
+data/v3/
