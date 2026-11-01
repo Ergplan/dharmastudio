@@ -546,8 +546,9 @@ html,body{{margin:0;padding:0;background:#2a2622}}
 .patch{{position:absolute;background-size:cover;background-position:center;background-color:#e8d8b4}}
 .tails{{position:absolute;left:0;top:0;overflow:visible}}
 .tb{{position:absolute;display:flex;align-items:center}}
+.tb-prose{{align-items:flex-start}}
 .tb-in{{position:relative;width:100%;overflow-wrap:break-word}}
-.tb-drop p:first-child::first-letter{{float:left;font-family:'Cinzel Decorative';color:#8c1e12;font-size:3.1em;line-height:.86;padding:.06em .08em 0 0}}
+.tb-drop p:first-child::first-letter{{float:left;font-family:'Cinzel Decorative';color:#8c1e12;font-size:3.6em;line-height:.8;padding:.04em .1em 0 0}}
 .tb-card{{background-size:cover;background-position:center;background-color:#efe4c9;box-shadow:0 0.4mm 1.2mm rgba(40,22,6,.45)}}
 .tb-card .rule{{position:absolute;border:0.13mm solid #5c3416;opacity:.7;pointer-events:none}}
 .tb-glass{{background:rgba(14,18,26,0.52);box-shadow:0 0.4mm 1.4mm rgba(0,0,0,.35)}}
