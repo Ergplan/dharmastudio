@@ -180,6 +180,22 @@ filters (all / comments / not approved) and jumps to the next page with comments
 clear message and art edits are labelled dry-run placeholders. Routes `backend/book_comments.py`; tests
 `tests/test_book_comments.py` (models mocked).
 
+## Stitch (art in the typeset book)
+
+*Rail → **Stitch***: import the finished paperback interior PDF (*Import PDF*: upload or a path). Its pages, fonts and
+text are kept exactly; graphic-novel art is only added in the white space. Left: the pages, with a dot per slot
+(blue = strip above a chapter heading, amber = collage in the blank space at a chapter end, green = icon in the top
+outer corner; filled when placed) and the plate pairs. Centre: the page rendered by the server with its blank areas
+outlined as drop slots. Right: the **photo repo** — add the art of an imported Book, a folder (e.g. the pipeline's
+chosen paintings) or files; search by name, tag, chapter or subject; double-click (or ⋯) a photo for its **subjects**
+(crop boxes you draw and name, or *Find subjects* with the OpenAI vision model). Drag a photo or a subject onto a slot,
+or click a slot and then a photo; drop 2–4 on the bottom slot for a **sewn collage**. The inspector sets style, piece
+order, crop (pan / zoom), size, tilt, sepia and *Re-tear*. *Add plate pair after page N* (odd pages only) inserts two
+facing full-page plates with captions, so every later page keeps its side. *Suggest* (picture editor) and *Review*
+(independent reviewer) use the configured models and change nothing until you *Accept*. *Undo* (⌘Z), *Export PDF*
+(job). Everything lives in `data/stitch/` (never committed). Spec: `SPEC.md` §12; engine `engine/stitch.py`; routes
+`backend/stitch_api.py`; tests `tests/test_stitch.py` (synthetic PDF and images, never the real book).
+
 ## Tests
 
 ```bash

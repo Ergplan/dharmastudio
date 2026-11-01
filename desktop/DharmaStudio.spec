@@ -8,7 +8,7 @@ ROOT = Path(os.getcwd())
 
 datas, binaries, hidden = [], [], []
 for pkg in ("webview", "uvicorn", "keyring", "anthropic", "openai", "pikepdf", "pypdf",
-            "imageio_ffmpeg", "segno", "zxingcpp", "uharfbuzz"):  # motion: static ffmpeg binary, QR encode/decode, text shaping
+            "imageio_ffmpeg", "segno", "zxingcpp", "uharfbuzz", "pymupdf"):  # motion: static ffmpeg binary, QR encode/decode, text shaping
     d, b, h = collect_all(pkg)
     datas += d; binaries += b; hidden += h
 hidden += collect_submodules("backend") + collect_submodules("engine")
