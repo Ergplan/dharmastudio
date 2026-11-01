@@ -29,6 +29,7 @@ dependencies = [
     "numpy>=1.26",
     "fonttools>=4.50",
     "brotli>=1.1",
+    "pymupdf>=1.24,<2",  # Stitch: art added to the typeset book PDF (2.x pulls in onnxruntime)
 ]
 
 [project.optional-dependencies]

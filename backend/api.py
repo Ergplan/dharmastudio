@@ -1461,6 +1461,10 @@ from . import book_comments  # noqa: E402  — comments on a book page, applied 
 
 app.include_router(book_comments.router)
 
+from . import stitch_api  # noqa: E402  — Stitch: graphic-novel art in the blank space of the typeset book PDF (stitch_pdf / stitch_review jobs)
+
+app.include_router(stitch_api.router)
+
 app.mount("/media", StaticFiles(directory=str(db.DATA_DIR)), name="media")
 
 
