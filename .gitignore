@@ -41,3 +41,5 @@ data/v3/
 
 # imported layered book packages (the book stays out of the repo)
 data/books/
+data/battle/
+data/v4/
