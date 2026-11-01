@@ -43,3 +43,6 @@ data/v3/
 data/books/
 data/battle/
 data/v4/
+
+# Stitch: the photo repo and stitch projects (the book PDF copy, art, exports) stay out of the repo
+data/stitch/
