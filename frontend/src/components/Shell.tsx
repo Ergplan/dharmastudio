@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { BookOpen, BookOpenCheck, Users, Layers, Type, FileText, LayoutGrid, Clapperboard, PenTool, Download, Film, Activity, X, Square, Loader2, AlertTriangle, ShieldAlert, Info, Check } from 'lucide-react'
+import { BookOpen, BookOpenCheck, Users, Layers, Type, FileText, LayoutGrid, Clapperboard, PenTool, Download, Film, Activity, Scissors, X, Square, Loader2, AlertTriangle, ShieldAlert, Info, Check } from 'lucide-react'
 import { useActiveJobs, useProject, useCharacters, useVolumes, useChapters, usePages, useSilhouettes, useExports, useStopJob, useLedger } from '@/api/hooks'
 import { useToasts } from '@/store/toasts'
 import { cx, StatusDot, ProgressBar, jobFraction, jobIsActive } from './ui'
@@ -33,6 +33,7 @@ function useRailStatus(): Record<string, { tone: Tone; title: string }> {
     export: { tone: jobs.some(j => j.kind === 'export') ? 'busy' : exps.length ? 'ok' : 'idle', title: `${exps.length} exports` },
     motion: { tone: jobs.some(j => j.kind === 'motion_render' || j.kind === 'seedance' || j.kind === 'site_publish') ? 'busy' : 'idle', title: 'Moments, Seedance, QR, Links, Site' },
     book: { tone: jobs.some(j => j.kind === 'book_pdf' || j.kind === 'book_comment') ? 'busy' : 'idle', title: 'The layered book: paper · art · text per page' },
+    stitch: { tone: jobs.some(j => j.kind === 'stitch_pdf' || j.kind === 'stitch_review') ? 'busy' : 'idle', title: 'Graphic-novel art stitched into the blank space of the typeset book PDF' },
   }
 }
 
@@ -48,6 +49,7 @@ const NAV = [
   { to: '/export', key: 'export', label: 'Export', icon: Download },
   { to: '/motion', key: 'motion', label: 'Motion', icon: Film },
   { to: '/book', key: 'book', label: 'Book', icon: BookOpenCheck },
+  { to: '/stitch', key: 'stitch', label: 'Stitch', icon: Scissors },
 ]
 
 export function Rail() {
@@ -69,7 +71,7 @@ export function Rail() {
   )
 }
 
-const TITLES: Record<string, string> = { '/project': 'Project', '/characters': 'Characters', '/canvas': 'Canvas', '/typography': 'Typography', '/script': 'Script', '/pages': 'Pages', '/director': 'Art Director', '/silhouettes': 'Silhouettes', '/export': 'Export', '/motion': 'Motion & Links', '/book': 'Book' }
+const TITLES: Record<string, string> = { '/project': 'Project', '/characters': 'Characters', '/canvas': 'Canvas', '/typography': 'Typography', '/script': 'Script', '/pages': 'Pages', '/director': 'Art Director', '/silhouettes': 'Silhouettes', '/export': 'Export', '/motion': 'Motion & Links', '/book': 'Book', '/stitch': 'Stitch' }
 
 export function Header({ right }: { right?: ReactNode }) {
   const loc = useLocation()

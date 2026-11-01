@@ -292,3 +292,55 @@ Routes (`backend/book_comments.py`, prefix `/api/book`): `POST /books/{b}/pages/
 …/comments/{c}`, `POST …/comments/{c}/apply`, `POST …/comments/apply-all`, `POST …/comments/{c}/revert`, `PUT
 …/status`, `PATCH|DELETE …/art/patches/{id}`, `GET /books/{b}/progress`, `POST /books/{b}/finish`; and
 `GET …/render?seq=` in `book_api.py`. Tests: `tests/test_book_comments.py` (language and image models mocked).
+
+## 12. Stitch — art in the blank space of the typeset book PDF (added 2026-11-01)
+
+Rail → **Stitch** (after Book). The author's finished paperback interior (6×9, typeset elsewhere) is kept exactly —
+pages, fonts, paper, text — and graphic-novel art is only **added** on top, in the white space the text leaves. It ports
+the author's own script for the Book One paperback sample into the app (`engine/stitch.py`, PyMuPDF; art at 300 dpi).
+
+- **Analysis** (`analyse(pdf)`): per page the text blocks (the folio — a lone page number near an edge — kept apart),
+  existing images / ornaments, the free space above the text (a chapter **opener**: text starts well below the book's
+  usual top) and below it (a chapter **end**: ≥ 150 pt blank above the folio), the side (odd = recto, outer edge right;
+  even = verso, outer edge left), the chapter heading carried forward, and the suggested **slots** in PDF points:
+  `top` (strip above the heading, clear of the ornament), `bottom` (collage in the blank under the text), `corner`
+  (icon in the top outer corner of a text page). No slot ever touches text, the folio or an existing image.
+- **Styles**: *torn strip* (one wide torn-out piece, old-paper rim, soft shadow, slight tilt), *sewn collage* (2–4 torn
+  pieces on an aged, torn old-paper backing — `engine/textures/page_warm.jpg` — with stains, tilts, shadows, red
+  cross-stitches with needle holes along the seams and a running stitch top and bottom), *round icon* (a torn-edged
+  medallion with an ink ring), *torn single*. Pieces are crops of the paintings around a subject crop box (or the most
+  detailed window when none is set), lightly aged (sepia amount, gentle vignette) and sharpened. Per placement: style,
+  pieces (order, crop), tilt, size (30–100 % of the slot), sepia, seed (*Re-tear*). The drawn piece is fitted inside its
+  slot (never upscaled past 300 dpi).
+- **Plates**: a whole painting as one large torn-out piece on its own page with a real-text italic caption (EB Garamond
+  Italic). Plates are inserted as a facing **pair** after an **odd** page (400 otherwise), so every later page keeps
+  its side (the PDF's margins alternate); always two pages, never a blank one; one pair per position.
+- **Photo repo** (`<data>/stitch/repo/`, gitignored): photos are copied in and identified by content (sha1), with
+  thumbs, tags, book / page / era / chapter, and **subjects** (named crop boxes in fractions of the photo, optional
+  drama score). Sources: the art layer of every page of an imported Book (`backend/book_store.py`), a folder on disk
+  (e.g. the pipeline's chosen art), uploaded files. *Find subjects* asks the OpenAI vision model (the critic's model
+  when it is a gpt-* one, else gpt-6.1-sol → gpt-5.5 → gpt-5) for 4–8 crops with a drama score; they are proposals until
+  kept.
+- **Projects** (`<data>/stitch/projects/<id>/`): `project.json` (placements, plates, AI suggestions and reviews),
+  `source.pdf` (a copy, never modified), `analysis.json`, `history.json` (each change keeps the placements and plates
+  as they were: undo), `cache/` (drawn pieces by content hash), `exports/`.
+- **AI** (optional, never applied without the author's *Accept*): *Suggest* — the picture editor (the prompt_writer
+  model) picks pieces from the repo matching the page's text for its slots; *Review* — an independent reviewer (the
+  critic model) checks each placement against the page / chapter text and the rendered page image, flags mismatches
+  and may propose a replacement. One page inline, or every placed page as job `stitch_review`. No key → 400 with the
+  reason.
+- **Export**: job `stitch_pdf` writes `exports/<title>-stitched-<stamp>.pdf`: the source with every placement and plate
+  pair; text stays extractable, page sizes unchanged.
+
+Routes (`backend/stitch_api.py`, prefix `/api/stitch`): `GET /projects`, `POST /projects/upload` (multipart),
+`POST /projects/import {path}`, `GET|PATCH|DELETE /projects/{p}`, `GET /projects/{p}/analysis`, `GET
+/projects/{p}/pages/{n}`, `GET …/pages/{n}/preview.png?dpi&art`, `GET …/pages/{n}/thumb.jpg`, `POST
+/projects/{p}/placements`, `PATCH|DELETE …/placements/{id}`, `POST /projects/{p}/plates`, `PATCH|DELETE
+…/plates/{id}`, `GET …/plates/{id}/{k}/preview.png`, `POST /projects/{p}/undo`, `GET …/history`, `POST
+/projects/{p}/export` (job), `GET …/exports`, `POST /projects/{p}/suggest {page}`, `POST
+…/suggestions/{n}/{k}/accept`, `DELETE …/suggestions/{n}`, `POST /projects/{p}/review {page?}`, `POST
+…/reviews/{n}/{k}/accept`, `DELETE …/reviews/{n}`; repo: `GET /repo?q&source&tag`, `GET /repo/books`, `POST
+/repo/import-book {book_id}`, `POST /repo/import-folder {path, tags?, recursive?}`, `POST /repo/upload` (multipart
+files), `GET|PATCH|DELETE /repo/{id}`, `POST /repo/{id}/subjects`, `POST …/subjects/bulk`, `PATCH|DELETE
+…/subjects/{sid}`, `POST /repo/{id}/find-subjects`. Store `backend/stitch_store.py`. Tests `tests/test_stitch.py`
+(a synthetic PDF and synthetic images made in the test; the models mocked).
