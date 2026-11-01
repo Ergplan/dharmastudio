@@ -325,3 +325,14 @@ def test_page_png(client, book):
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
     im = Image.open(io.BytesIO(r.content))
     assert abs(im.size[0] - 2040) <= 2 and abs(im.size[1] - 3060) <= 2
+
+
+
+def test_prose_page_renders_novel_text_without_card():
+    from engine import book_render as R
+    box = {"id": "p1-t1", "kind": "narration", "style": "prose", "dropcap": True, "text": "Lanka burned like a mountain of embers.\nNot the night the vanara had set its roofs ablaze.",
+           "x": 190, "y": 330, "w": 1660, "h": 2400}
+    b, tail = R._text_box_html(box, R.Geo(), None, "")
+    assert "tb-prose" in b and "tb-drop" in b and "tb-card" not in b and "text-align:justify" in b
+    assert b.count("<p ") == 2 and tail == ""
+    assert "prose" in R.STYLES and "justify" in R.ALIGNS

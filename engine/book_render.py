@@ -40,8 +40,8 @@ SHLOKAS_YAML = ENGINE / "shlokas.yaml"
 SEPIA = (0x5C, 0x34, 0x16)
 SHLOKA_RED = "#8c1e12"
 TEXT_KINDS = ("narration", "dialogue", "header")
-STYLES = ("parchment", "glass", "glass-narration", "header")
-ALIGNS = ("left", "center", "right")
+STYLES = ("parchment", "glass", "glass-narration", "header", "prose")
+ALIGNS = ("left", "center", "right", "justify")
 
 # the faces a book page may use: family -> [(file, css weight, css style)]. The six of the house look come first;
 # the rest of the studio's OFL catalogue is offered in the font picker as well.
@@ -89,6 +89,8 @@ STYLE_DEFAULTS: dict[str, dict[str, Any]] = {
     "glass-narration": {"font": "Inter Tight", "weight": 560, "size": 44, "line": 58, "color": "#faf8f2", "align": "left"},
     "header": {"font": "Cinzel Decorative", "weight": 700, "size": 64, "line": 74, "color": "#24180c", "align": "left",
                "kicker_font": "Cinzel", "kicker_size": 30, "kicker_color": "#8c1e12"},
+    # a full page of the novel's own text, set straight on the parchment (no card)
+    "prose": {"font": "EB Garamond", "weight": 500, "size": 50, "line": 74, "color": "#24180c", "align": "justify"},
 }
 
 
@@ -406,6 +408,11 @@ def _text_box_html(t: dict[str, Any], g: Geo, res: Resources, card_url: str) -> 
         cls = "tb tb-card tb-header"
         bg = f"background-image:url('{card_url}');" if card_url else ""
         return f"<div class='{cls}' data-id='{tid}' data-kind='{kind}' style=\"{pos}{bg}\"><div class='rule' style='inset:{g.mm(9)}'></div>{inner}</div>", ""
+    if style == "prose":
+        paras = [x for x in str(t.get("text") or "").split("\n") if x.strip()]
+        body = "".join(f"<p style='margin:0 0 {g.mm(line * 0.35)};text-indent:{g.mm(0 if i == 0 else size * 1.4)}'>{_esc(x)}</p>" for i, x in enumerate(paras))
+        drop = " tb-drop" if t.get("dropcap") else ""
+        return f"<div class='tb tb-prose{drop}' data-id='{tid}' data-kind='{kind}' style=\"{pos}\"><div class='tb-in' style=\"{font}hyphens:auto\">{body}</div></div>", ""
     if style == "parchment":
         bg = f"background-image:url('{card_url}');" if card_url else ""
         inner = f"<div class='tb-in' style=\"padding:{g.mm(20)} {g.mm(32)};{font}\">{_text_html(t.get('text'))}</div>"
@@ -540,6 +547,7 @@ html,body{{margin:0;padding:0;background:#2a2622}}
 .tails{{position:absolute;left:0;top:0;overflow:visible}}
 .tb{{position:absolute;display:flex;align-items:center}}
 .tb-in{{position:relative;width:100%;overflow-wrap:break-word}}
+.tb-drop p:first-child::first-letter{{float:left;font-family:'Cinzel Decorative';color:#8c1e12;font-size:3.1em;line-height:.86;padding:.06em .08em 0 0}}
 .tb-card{{background-size:cover;background-position:center;background-color:#efe4c9;box-shadow:0 0.4mm 1.2mm rgba(40,22,6,.45)}}
 .tb-card .rule{{position:absolute;border:0.13mm solid #5c3416;opacity:.7;pointer-events:none}}
 .tb-glass{{background:rgba(14,18,26,0.52);box-shadow:0 0.4mm 1.4mm rgba(0,0,0,.35)}}

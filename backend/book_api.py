@@ -135,7 +135,7 @@ def _num(v: Any, lo: float = -10000, hi: float = 20000) -> float:
     return round(max(lo, min(hi, f)), 2)
 
 
-TEXT_FIELDS = ("kind", "text", "x", "y", "w", "h", "style", "font", "size", "weight", "line", "align", "tail", "kicker", "title", "color")
+TEXT_FIELDS = ("kind", "text", "x", "y", "w", "h", "style", "font", "size", "weight", "line", "align", "tail", "kicker", "title", "color", "dropcap")
 
 
 def clean_text_box(t: dict[str, Any], base: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -163,7 +163,7 @@ def clean_text_box(t: dict[str, Any], base: dict[str, Any] | None = None) -> dic
             out[k] = v
         elif k == "align":
             if v is not None and v not in R.ALIGNS:
-                raise HTTPException(400, "align must be left, center or right")
+                raise HTTPException(400, "align must be left, center, right or justify")
             out[k] = v
         elif k == "tail":
             if v is None:
@@ -174,6 +174,8 @@ def clean_text_box(t: dict[str, Any], base: dict[str, Any] | None = None) -> dic
                 raise HTTPException(400, "tail is [x, y] or null")
         elif k == "color":
             out[k] = str(v)[:32] if v else None
+        elif k == "dropcap":
+            out[k] = bool(v)
         else:
             out[k] = "" if v is None else str(v)[:4000]
     if out.get("style") == "header" and "text" in t and "title" not in t:

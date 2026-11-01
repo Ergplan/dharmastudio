@@ -4,9 +4,9 @@ import { useApiMutation, type JobResp } from '@/api/hooks'
 
 /** The Book section: a layered book package (paper / art / text per page) imported at runtime. Routes: backend/book_api.py. */
 
-export type TextStyle = 'parchment' | 'glass' | 'glass-narration' | 'header'
+export type TextStyle = 'parchment' | 'glass' | 'glass-narration' | 'header' | 'prose'
 export type TextKind = 'narration' | 'dialogue' | 'header'
-export type Align = 'left' | 'center' | 'right'
+export type Align = 'left' | 'center' | 'right' | 'justify'
 export type LayerKey = 'paper' | 'art' | 'text'
 export type Layers = Record<LayerKey, boolean>
 
@@ -139,7 +139,7 @@ export const useExportPackage = (bid: string | null, onOk: (r: { url: string; na
   useApiMutation(() => api.post<{ url: string; name: string; path: string; bytes: number }>(`${B}/books/${bid}/export/package`), [bk.exports(bid ?? '')], onOk)
 export const useDeleteBook = (onOk: () => void) => useApiMutation((bid: string) => api.del(`${B}/books/${bid}`), [bk.books], onOk)
 
-export const STYLE_LABEL: Record<TextStyle, string> = { parchment: 'Parchment card', glass: 'Glass balloon', 'glass-narration': 'Glass narration', header: 'Header' }
+export const STYLE_LABEL: Record<TextStyle, string> = { parchment: 'Parchment card', glass: 'Glass balloon', 'glass-narration': 'Glass narration', header: 'Header', prose: 'Novel text' }
 export const fmtBytes = (n: number) => n > 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : n > 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`
 
 /** A 409 from the server carries {message, …} as JSON in the error detail. */
